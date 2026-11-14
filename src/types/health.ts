@@ -25,6 +25,18 @@ export type BodySystemStatus =
   | "metabolic"
   | "immune_musculoskeletal";
 
+export interface OfficialReferenceLink {
+  label: string;
+  url: string;
+}
+
+export interface MissionProfile {
+  missionName: string;
+  commanderRole: string;
+  medicalOfficerRole: string;
+  program: string;
+}
+
 export interface VitalReadings {
   missionDay: number;
   recordedAt: string;
@@ -37,6 +49,8 @@ export interface VitalReadings {
   sleepHours: number;
   moodScore: number;
   radiationMsv?: number;
+  /** 1 = calm, 10 = extreme stress */
+  stressLevel?: number;
   imageNoteOrDataUrl?: string;
   extraMetrics?: Record<string, number | string>;
 }
@@ -69,21 +83,35 @@ export interface HazardKnowledgeBlock {
   whatCanBeMeasured: string[];
   preventiveActions: string[];
   relatedSystems: BodySystemStatus[];
+  hrpRisks?: string[];
+  officialLinks?: OfficialReferenceLink[];
 }
 
+export type VitalsFormMetric =
+  | keyof Pick<
+      VitalReadings,
+      | "systolicBP"
+      | "diastolicBP"
+      | "heartRate"
+      | "bloodSugar"
+      | "temperature"
+      | "sleepHours"
+      | "moodScore"
+    >
+  | "radiationMsv"
+  | "stressLevel";
+
 export interface ExamThreshold {
-  metric: keyof Pick<
-    VitalReadings,
-    | "systolicBP"
-    | "diastolicBP"
-    | "heartRate"
-    | "bloodSugar"
-    | "temperature"
-    | "sleepHours"
-    | "moodScore"
-  >;
+  metric: VitalsFormMetric;
   normal: { min?: number; max?: number };
   warning: { min?: number; max?: number };
   unit: string;
   label: string;
+}
+
+export interface EnvironmentMissionMeta {
+  latencyLabel: string;
+  latencyMs: number;
+  primaryHazards: SpaceflightHazard[];
+  autonomyNote: string;
 }

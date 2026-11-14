@@ -18,6 +18,7 @@ function entry(
     temperature: 36.7,
     sleepHours: 7.2,
     moodScore: 4,
+    stressLevel: 3,
     radiationMsv: 0.4 + day * 0.02,
     ...partial,
     environment: partial.environment,
@@ -38,6 +39,7 @@ export function buildMockMissionHistory(
     let sleep = 7.4 - (day > 10 ? 0.15 * (day - 10) : 0);
     let mood = day > 11 ? 3 : 4;
     let glucose = 95 + (day > 8 ? (day - 8) * 2 : 0);
+    let stress = day > 12 ? 5 : 3;
 
     if (day === 12) {
       systolic = 138;
@@ -47,6 +49,7 @@ export function buildMockMissionHistory(
     if (day === 13) {
       sleep = 4.5;
       mood = 2;
+      stress = 6;
     }
     if (day === 14) {
       systolic = 142;
@@ -65,6 +68,7 @@ export function buildMockMissionHistory(
         temperature: 36.5 + (day === 13 ? 0.4 : 0.2),
         sleepHours: Math.round(sleep * 10) / 10,
         moodScore: mood,
+        stressLevel: stress,
         radiationMsv,
       })
     );
@@ -75,17 +79,63 @@ export function buildMockMissionHistory(
 
 export const MOCK_MISSION_HISTORY = buildMockMissionHistory("station");
 
-export const CRITICAL_SCENARIO_READING: VitalReadings = {
-  missionDay: 15,
-  recordedAt: new Date().toISOString(),
-  environment: "station",
-  systolicBP: 168,
-  diastolicBP: 104,
-  heartRate: 124,
-  bloodSugar: 210,
-  temperature: 38.4,
-  sleepHours: 3.5,
-  moodScore: 1,
-  radiationMsv: 1.2,
-  extraMetrics: { headache: "severe" },
-};
+function scenarioBase(environment: MissionEnvironment): VitalReadings {
+  const last = buildMockMissionHistory(environment).slice(-1)[0];
+  return {
+    ...last,
+    missionDay: (last?.missionDay ?? 14) + 1,
+    recordedAt: new Date().toISOString(),
+    environment,
+  };
+}
+
+/** Solar Particle Event — high radiation, fatigue, elevated HR */
+export function solarParticleScenario(
+  environment: MissionEnvironment = "station"
+): VitalReadings {
+  const base = scenarioBase(environment);
+  return {
+    ...base,
+    radiationMsv: 1.75,
+    heartRate: 108,
+    sleepHours: 5.2,
+    moodScore: 3,
+    stressLevel: 7,
+    extraMetrics: { fatigueLevel: "elevated" },
+  };
+}
+
+/** Cardio / microgravity dehydration — ground flight surgeon */
+export function cardioDehydrationScenario(
+  environment: MissionEnvironment = "station"
+): VitalReadings {
+  const base = scenarioBase(environment);
+  return {
+    ...base,
+    systolicBP: 166,
+    diastolicBP: 102,
+    heartRate: 124,
+    temperature: 38.3,
+    bloodSugar: 118,
+    stressLevel: 6,
+    radiationMsv: 0.6,
+  };
+}
+
+/** Isolation & circadian drift — crew attention */
+export function isolationDriftScenario(
+  environment: MissionEnvironment = "station"
+): VitalReadings {
+  const base = scenarioBase(environment);
+  return {
+    ...base,
+    sleepHours: 3.8,
+    moodScore: 2,
+    stressLevel: 8,
+    heartRate: 86,
+    extraMetrics: { reactionTimeMs: 540 },
+  };
+}
+
+/** @deprecated Use scenario helpers instead */
+export const CRITICAL_SCENARIO_READING: VitalReadings = cardioDehydrationScenario("station");

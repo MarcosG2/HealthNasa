@@ -1,5 +1,13 @@
 import type { ExamThreshold, HazardKnowledgeBlock } from "@/types/health";
 
+const HRP_HAZARDS_URL = "https://www.nasa.gov/hrp/hazards/";
+const HRP_RISKS_URL = "https://www.nasa.gov/hrp/risks/";
+const HRP_ONGOING_URL = "https://www.nasa.gov/hrp/ongoing-hrp-research/";
+const CSA_RADIATION_URL =
+  "https://www.asc-csa.gc.ca/eng/news/articles/2026/2026-02-26-monitoring-radiation-astronaut-health.asp";
+const CSA_ISS_SCIENCE_URL =
+  "https://www.asc-csa.gc.ca/eng/iss/science/why-do-we-conduct-science-experiments-in-space.asp";
+
 export const NASA_HAZARDS_KNOWLEDGE: HazardKnowledgeBlock[] = [
   {
     hazard: "radiation",
@@ -19,6 +27,15 @@ export const NASA_HAZARDS_KNOWLEDGE: HazardKnowledgeBlock[] = [
       "Report fatigue or unusual bruising to the crew medical officer",
     ],
     relatedSystems: ["immune_musculoskeletal", "metabolic"],
+    hrpRisks: [
+      "Radiation carcinogenesis",
+      "Acute radiation syndromes (SPE events)",
+      "Altered immune response",
+    ],
+    officialLinks: [
+      { label: "NASA HRP — Spaceflight Hazards", url: HRP_HAZARDS_URL },
+      { label: "CSA — Monitoring radiation & astronaut health", url: CSA_RADIATION_URL },
+    ],
   },
   {
     hazard: "isolation",
@@ -29,6 +46,7 @@ export const NASA_HAZARDS_KNOWLEDGE: HazardKnowledgeBlock[] = [
       "Mood and sleep are early signs of stress. Catching trends early helps the crew support each other.",
     whatCanBeMeasured: [
       "Mood score (1–5)",
+      "Stress level (1–10)",
       "Sleep hours",
       "Heart rate at rest",
     ],
@@ -38,6 +56,15 @@ export const NASA_HAZARDS_KNOWLEDGE: HazardKnowledgeBlock[] = [
       "Balance workload and rest periods",
     ],
     relatedSystems: ["neuro_behavioral"],
+    hrpRisks: [
+      "Behavioral health & performance",
+      "Team cohesion & psychosocial adaptation",
+      "Sleep deficiency",
+    ],
+    officialLinks: [
+      { label: "NASA HRP — Spaceflight Hazards", url: HRP_HAZARDS_URL },
+      { label: "NASA HRP — Human Health Risks", url: HRP_RISKS_URL },
+    ],
   },
   {
     hazard: "distance",
@@ -62,6 +89,15 @@ export const NASA_HAZARDS_KNOWLEDGE: HazardKnowledgeBlock[] = [
       "metabolic",
       "immune_musculoskeletal",
     ],
+    hrpRisks: [
+      "Inadequate medical capabilities",
+      "Behavioral health under delayed Earth support",
+      "Mission-critical autonomous decision-making",
+    ],
+    officialLinks: [
+      { label: "NASA HRP — Spaceflight Hazards", url: HRP_HAZARDS_URL },
+      { label: "NASA HRP — Ongoing research", url: HRP_ONGOING_URL },
+    ],
   },
   {
     hazard: "gravity",
@@ -81,6 +117,15 @@ export const NASA_HAZARDS_KNOWLEDGE: HazardKnowledgeBlock[] = [
       "Monitor dizziness when standing in partial gravity",
     ],
     relatedSystems: ["cardiovascular", "immune_musculoskeletal", "metabolic"],
+    hrpRisks: [
+      "Cardiovascular deconditioning",
+      "Bone loss & muscle atrophy",
+      "Sensorimotor adaptation",
+    ],
+    officialLinks: [
+      { label: "NASA HRP — Spaceflight Hazards", url: HRP_HAZARDS_URL },
+      { label: "NASA HRP — Human Health Risks", url: HRP_RISKS_URL },
+    ],
   },
   {
     hazard: "closed_environment",
@@ -93,6 +138,7 @@ export const NASA_HAZARDS_KNOWLEDGE: HazardKnowledgeBlock[] = [
       "Temperature",
       "Blood sugar",
       "Sleep hours",
+      "Cabin CO₂ / hygiene checks",
     ],
     preventiveActions: [
       "Maintain ventilation and hygiene schedules",
@@ -100,6 +146,15 @@ export const NASA_HAZARDS_KNOWLEDGE: HazardKnowledgeBlock[] = [
       "Log headaches or nausea in notes",
     ],
     relatedSystems: ["metabolic", "neuro_behavioral"],
+    hrpRisks: [
+      "Altered metabolic response",
+      "Immune dysregulation in confined habitats",
+      "Hypoxia / hypercapnia (elevated CO₂)",
+    ],
+    officialLinks: [
+      { label: "NASA HRP — Spaceflight Hazards", url: HRP_HAZARDS_URL },
+      { label: "CSA — Science on the ISS", url: CSA_ISS_SCIENCE_URL },
+    ],
   },
 ];
 
@@ -153,10 +208,24 @@ export const EXAM_THRESHOLDS: ExamThreshold[] = [
     normal: { min: 3, max: 5 },
     warning: { min: 2, max: 5 },
   },
+  {
+    metric: "stressLevel",
+    label: "Stress level",
+    unit: "1–10",
+    normal: { min: 1, max: 5 },
+    warning: { min: 1, max: 7 },
+  },
+  {
+    metric: "radiationMsv",
+    label: "Radiation dose",
+    unit: "mSv",
+    normal: { min: 0, max: 1.0 },
+    warning: { min: 0, max: 1.5 },
+  },
 ];
 
 export const MEASUREMENT_GUIDE: Record<
-  ExamThreshold["metric"],
+  import("@/types/health").VitalsFormMetric,
   { howTo: string; whySpace: string }
 > = {
   systolicBP: {
@@ -187,4 +256,19 @@ export const MEASUREMENT_GUIDE: Record<
     howTo: "Tap the face that matches how you feel today (1 = very low, 5 = great).",
     whySpace: "Mood tracks isolation stress and helps the crew stay coordinated.",
   },
+  radiationMsv: {
+    howTo:
+      "Read today's dose from the personal dosimeter or cabin monitor. Enter cumulative daily exposure in mSv.",
+    whySpace:
+      "Deep-space and lunar missions lack Earth's magnetic shielding; dose tracking supports SPE shelter decisions.",
+  },
+  stressLevel: {
+    howTo:
+      "Rate perceived stress from 1 (calm) to 10 (overwhelming) using the crew wellness scale after your check-in.",
+    whySpace:
+      "Isolation, workload, and radiation awareness compound stress; early scores guide crew support before performance drops.",
+  },
 };
+
+/** NASA/CSA caution line for daily radiation chart (mSv) */
+export const RADIATION_CHART_CAUTION_MSV = 1.0;

@@ -6,6 +6,7 @@ import type {
   EscalationLevel,
   HealthEvaluation,
   HealthStatus,
+  SpaceflightHazard,
   SystemStatusEntry,
   VitalReadings,
 } from "@/types/health";
@@ -51,12 +52,14 @@ function systemForMetric(metric: string): BodySystemStatus {
     temperature: "metabolic",
     sleepHours: "neuro_behavioral",
     moodScore: "neuro_behavioral",
+    stressLevel: "neuro_behavioral",
+    radiationMsv: "immune_musculoskeletal",
   };
   return map[metric] ?? "immune_musculoskeletal";
 }
 
 function buildGuidance(
-  hazards: Set<string>,
+  hazards: Set<SpaceflightHazard>,
   actions: string[],
   why: string
 ): ActionableGuidance {
@@ -68,6 +71,16 @@ function buildGuidance(
     hazardImpact,
     recommendedActions: actions,
   };
+}
+
+function reactionTimeMs(current: VitalReadings): number | undefined {
+  const raw = current.extraMetrics?.reactionTimeMs;
+  if (typeof raw === "number") return raw;
+  if (typeof raw === "string") {
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : undefined;
+  }
+  return undefined;
 }
 
 /**
@@ -85,22 +98,40 @@ export function evaluateHealth(
 
   const metricStatuses: Record<string, HealthStatus> = {};
   for (const th of EXAM_THRESHOLDS) {
+    if (th.metric === "radiationMsv" || th.metric === "stressLevel") continue;
     const value = current[th.metric] as number;
     metricStatuses[th.metric] = scoreMetric(value, th.normal, th.warning);
   }
 
-  if (current.radiationMsv !== undefined && current.radiationMsv > 1) {
-    metricStatuses.radiation = "warning";
-    if (current.radiationMsv > 1.5) metricStatuses.radiation = "critical";
+  if (current.radiationMsv !== undefined) {
+    const dose = current.radiationMsv;
+    let st: HealthStatus = "normal";
+    if (dose > 1.5) st = "critical";
+    else if (dose > 1.0) st = "warning";
+    metricStatuses.radiationMsv = st;
+    metricStatuses.radiation = st;
+  }
+
+  if (current.stressLevel !== undefined) {
+    const stress = current.stressLevel;
+    let st: HealthStatus = "normal";
+    if (stress >= 8) st = "critical";
+    else if (stress >= 6) st = "warning";
+    metricStatuses.stressLevel = st;
+  }
+
+  const reactionMs = reactionTimeMs(current);
+  if (reactionMs !== undefined) {
+    let st: HealthStatus = "normal";
+    if (reactionMs > 650) st = "critical";
+    else if (reactionMs > 450) st = "warning";
+    metricStatuses.reactionTimeMs = st;
   }
 
   const bpTrend = trendDelta(history, (v) => v.systolicBP);
   const sleepTrend = trendDelta(history, (v) => v.sleepHours);
   if (bpTrend >= 8) {
-    metricStatuses.systolicBP = worst(
-      metricStatuses.systolicBP,
-      "warning"
-    );
+    metricStatuses.systolicBP = worst(metricStatuses.systolicBP, "warning");
   }
   if (sleepTrend <= -1.5) {
     metricStatuses.sleepHours = worst(metricStatuses.sleepHours, "warning");
@@ -108,6 +139,7 @@ export function evaluateHealth(
 
   const bySystem = new Map<BodySystemStatus, HealthStatus>();
   for (const th of EXAM_THRESHOLDS) {
+    if (th.metric === "radiationMsv" || th.metric === "stressLevel") continue;
     const sys = systemForMetric(th.metric);
     const st = metricStatuses[th.metric];
     bySystem.set(sys, worst(bySystem.get(sys) ?? "normal", st));
@@ -116,6 +148,18 @@ export function evaluateHealth(
     bySystem.set(
       "immune_musculoskeletal",
       worst(bySystem.get("immune_musculoskeletal") ?? "normal", metricStatuses.radiation)
+    );
+  }
+  if (metricStatuses.stressLevel) {
+    bySystem.set(
+      "neuro_behavioral",
+      worst(bySystem.get("neuro_behavioral") ?? "normal", metricStatuses.stressLevel)
+    );
+  }
+  if (metricStatuses.reactionTimeMs) {
+    bySystem.set(
+      "neuro_behavioral",
+      worst(bySystem.get("neuro_behavioral") ?? "normal", metricStatuses.reactionTimeMs)
     );
   }
 
@@ -154,19 +198,31 @@ export function evaluateHealth(
     escalationLevel = "ground_flight_surgeon";
     overallStatus = "critical";
   }
+  if (
+    (current.stressLevel !== undefined && current.stressLevel >= 8) ||
+    (metricStatuses.reactionTimeMs === "warning" ||
+      metricStatuses.reactionTimeMs === "critical")
+  ) {
+    escalationLevel = worstEscalation(escalationLevel, "crew_attention");
+    if (
+      current.stressLevel !== undefined &&
+      current.stressLevel >= 8 &&
+      (metricStatuses.sleepHours === "critical" ||
+        metricStatuses.moodScore === "critical")
+    ) {
+      escalationLevel = worstEscalation(escalationLevel, "crew_attention");
+    }
+  }
 
   const guidance: ActionableGuidance[] = [];
-  const hazardTags = new Set<string>();
 
   if (
     metricStatuses.systolicBP !== "normal" ||
     metricStatuses.heartRate !== "normal"
   ) {
-    hazardTags.add("gravity");
-    hazardTags.add("distance");
     guidance.push(
       buildGuidance(
-        hazardTags,
+        new Set(["gravity", "distance"]),
         copy.guidance.cardio.actions,
         copy.guidance.cardio.why
       )
@@ -175,13 +231,13 @@ export function evaluateHealth(
 
   if (
     metricStatuses.sleepHours !== "normal" ||
-    metricStatuses.moodScore !== "normal"
+    metricStatuses.moodScore !== "normal" ||
+    (metricStatuses.stressLevel && metricStatuses.stressLevel !== "normal") ||
+    (metricStatuses.reactionTimeMs && metricStatuses.reactionTimeMs !== "normal")
   ) {
-    hazardTags.add("isolation");
-    hazardTags.add("closed_environment");
     guidance.push(
       buildGuidance(
-        hazardTags,
+        new Set(["isolation", "closed_environment"]),
         copy.guidance.neuro.actions,
         copy.guidance.neuro.why
       )
@@ -189,13 +245,30 @@ export function evaluateHealth(
   }
 
   if (metricStatuses.bloodSugar !== "normal" || metricStatuses.temperature !== "normal") {
-    hazardTags.add("closed_environment");
-    hazardTags.add("distance");
     guidance.push(
       buildGuidance(
-        hazardTags,
+        new Set(["closed_environment", "distance"]),
         copy.guidance.metabolic.actions,
         copy.guidance.metabolic.why
+      )
+    );
+  }
+
+  if (metricStatuses.radiation === "warning" || metricStatuses.radiation === "critical") {
+    guidance.push(
+      buildGuidance(
+        new Set(["radiation"]),
+        [
+          locale === "es"
+            ? "Refugio en módulo blindado y repetir dosimetría."
+            : "Shelter in shielded module and repeat dosimetry.",
+          locale === "es"
+            ? "Informar al oficial médico y registrar fatiga."
+            : "Inform crew medical officer and log fatigue.",
+        ],
+        locale === "es"
+          ? "Picos de radiación afectan inmunidad y requieren contramedidas inmediatas."
+          : "Radiation spikes affect immunity and need immediate countermeasures.",
       )
     );
   }
@@ -224,4 +297,13 @@ export function evaluateHealth(
     guidance,
     headline,
   };
+}
+
+function worstEscalation(a: EscalationLevel, b: EscalationLevel): EscalationLevel {
+  const rank: Record<EscalationLevel, number> = {
+    self_care: 0,
+    crew_attention: 1,
+    ground_flight_surgeon: 2,
+  };
+  return rank[a] >= rank[b] ? a : b;
 }
