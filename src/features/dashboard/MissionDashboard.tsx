@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -23,9 +22,10 @@ import {
 import { buildMockMissionHistory, MOCK_MISSION_HISTORY } from "@/data/mockMissionHistory";
 import { BodyMap } from "@/features/body-map/BodyMap";
 import { evaluateHealth } from "@/features/rules-engine/evaluateHealth";
+import { DayReplayDetail } from "@/features/timeline/DayReplayDetail";
 import { HealthCharts } from "@/features/timeline/HealthCharts";
+import { formatMissionTimestamp } from "@/lib/missionTime";
 import { MissionRoutinePanel } from "@/features/vitals-form/MissionRoutinePanel";
-import { VitalsInputForm } from "@/features/vitals-form/VitalsInputForm";
 import {
   ENVIRONMENT_LABELS,
   ENVIRONMENT_MISSION_META,
@@ -178,7 +178,10 @@ export function MissionDashboard() {
   const [mockFeedLabel, setMockFeedLabel] = useState<string | null>(null);
   const [selectedAstronautId, setSelectedAstronautId] = useState<string>("eva-chen");
   const [roster, setRoster] = useState<MockAstronautProfile[]>(ASTRONAUT_ROSTER);
+  const [replayFocus, setReplayFocus] = useState<VitalReadings | null>(null);
   const baselineLoadSeq = useRef(0);
+  const bodyTrackerAnchorRef = useRef<HTMLElement | null>(null);
+  const simControlsLocked = replayFocus !== null;
 
   useEffect(() => {
     // Post-mount hydration: SSR uses MOCK_MISSION_HISTORY; client restores saved logs.
@@ -228,36 +231,27 @@ export function MissionDashboard() {
 
   const ui = UI_STRINGS[locale];
   const profile = MISSION_PROFILE[locale];
-  const envMeta = ENVIRONMENT_MISSION_META[locale][environment];
 
   const latest =
     history[history.length - 1] ??
     MOCK_MISSION_HISTORY[MOCK_MISSION_HISTORY.length - 1];
+
+  const focusReading = replayFocus ?? latest;
+  const historyBeforeFocus = useMemo(() => {
+    if (!replayFocus) return history.slice(0, -1);
+    return history.filter((row) => row.missionDay < replayFocus.missionDay);
+  }, [history, replayFocus]);
+
   const evaluation = useMemo(
-    () => evaluateHealth(latest, history.slice(0, -1), locale),
-    [latest, history, locale]
+    () => evaluateHealth(focusReading, historyBeforeFocus, locale),
+    [focusReading, historyBeforeFocus, locale]
   );
+
+  const envMeta = ENVIRONMENT_MISSION_META[locale][focusReading.environment];
 
   const overallStyles = statusStyles(evaluation.overallStatus);
   const selectedAstronaut =
     roster.find((a) => a.id === selectedAstronautId) ?? roster[0];
-
-  const appendReading = useCallback((reading: VitalReadings) => {
-    setBaselineHistory((prev) => {
-      const next = [...prev.filter((p) => p.missionDay !== reading.missionDay), reading].sort(
-        (a, b) => a.missionDay - b.missionDay
-      );
-      saveLogs(next);
-      void fetch("/api/health-log", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...reading, syncAck: true }),
-      }).catch(() => {
-        /* optional ground sync */
-      });
-      return next;
-    });
-  }, []);
 
   async function restoreBaselineFromFeed(
     astronautId = selectedAstronautId,
@@ -284,12 +278,15 @@ export function MissionDashboard() {
   }
 
   function resetBaseline() {
+    if (simControlsLocked) return;
     setActiveScenarios([]);
     saveActiveScenarios([]);
+    setReplayFocus(null);
     void restoreBaselineFromFeed();
   }
 
   function toggleScenario(scenarioId: MissionScenarioId) {
+    if (simControlsLocked) return;
     setActiveScenarios((prev) => {
       const next = prev.includes(scenarioId)
         ? prev.filter((id) => id !== scenarioId)
@@ -300,10 +297,12 @@ export function MissionDashboard() {
   }
 
   async function onSelectAstronaut(astronautId: string) {
+    if (simControlsLocked) return;
     setSelectedAstronautId(astronautId);
     saveAstronautId(astronautId);
     setActiveScenarios([]);
     saveActiveScenarios([]);
+    setReplayFocus(null);
     await restoreBaselineFromFeed(astronautId);
   }
 
@@ -312,15 +311,26 @@ export function MissionDashboard() {
   }
 
   function onSelectEnvironment(env: MissionEnvironment) {
-    if (env === environment) return;
+    if (simControlsLocked || env === environment) return;
     setEnvironment(env);
+    setReplayFocus(null);
     void restoreBaselineFromFeed(selectedAstronautId, env);
+  }
+
+  function onChartDaySelect(reading: VitalReadings) {
+    setReplayFocus(reading);
+    requestAnimationFrame(() => {
+      bodyTrackerAnchorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
+
+  function returnToLiveNow() {
+    setReplayFocus(null);
   }
 
   const lastVisualAttachment = findLastVisualAttachment(history);
 
-  const nextDay = (latest?.missionDay ?? 14) + 1;
-  const envLabel = ENVIRONMENT_LABELS[locale][environment];
+  const envLabel = ENVIRONMENT_LABELS[locale][focusReading.environment];
 
   return (
     <div className="mission-shell">
@@ -434,16 +444,71 @@ export function MissionDashboard() {
         tabIndex={-1}
         className="mx-auto max-w-7xl space-y-10 px-4 py-8 sm:px-6 lg:px-8"
       >
+        {replayFocus ? (
+          <section
+            ref={bodyTrackerAnchorRef}
+            aria-labelledby="body-replay-heading"
+            className="mission-panel sticky top-2 z-20 scroll-mt-4 border border-primary/40 bg-base-100/95 p-4 shadow-lg backdrop-blur-sm"
+          >
+            <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 id="body-replay-heading" className="mission-section-title text-base">
+                  {ui.bodyReplayAtTop}
+                </h2>
+                <p className="mt-1 text-sm text-base-content/80">
+                  {ui.missionDay} {replayFocus.missionDay} ·{" "}
+                  <span className="mission-readout text-primary">
+                    {formatMissionTimestamp(replayFocus.recordedAt, locale)} UTC
+                  </span>
+                </p>
+              </div>
+              <p
+                className={`rounded-field px-3 py-2 text-xs font-semibold uppercase ${overallStyles.bg} ${overallStyles.text}`}
+                role="status"
+              >
+                {statusLabelForLocale(locale, evaluation.overallStatus)}
+              </p>
+            </div>
+            <BodyMap systemStatuses={evaluation.systemStatuses} locale={locale} />
+          </section>
+        ) : null}
+
         <section aria-labelledby="sim-controls-heading">
           <h2 id="sim-controls-heading" className="sr-only">
             {ui.simulationControls}
           </h2>
-          <div className="mission-panel p-4">
+          <div
+            className={`mission-panel p-4 ${simControlsLocked ? "opacity-75" : ""}`}
+            aria-disabled={simControlsLocked}
+          >
+            {simControlsLocked ? (
+              <p
+                role="status"
+                className="mb-4 rounded-field border border-primary/35 bg-primary/10 px-3 py-2 text-sm text-base-content/85"
+              >
+                {ui.replayModeBanner}{" "}
+                <span className="mission-readout text-xs text-primary">
+                  {formatMissionTimestamp(replayFocus!.recordedAt, locale)} UTC
+                </span>
+              </p>
+            ) : null}
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <p className="mission-section-title">{ui.simulationControls}</p>
-              <p className="mission-readout text-base-content/80 lg:text-right">
-                {ui.missionDay} {latest.missionDay} · {envLabel}
-              </p>
+              <div className="flex flex-col items-start gap-2 lg:items-end">
+                <p className="mission-readout text-base-content/80 lg:text-right">
+                  {ui.missionDay} {focusReading.missionDay} · {envLabel}
+                </p>
+                {simControlsLocked ? (
+                  <button
+                    type="button"
+                    onClick={returnToLiveNow}
+                    className="btn btn-sm btn-primary gap-2"
+                  >
+                    <Clock className="h-4 w-4" aria-hidden />
+                    {ui.returnToNow}
+                  </button>
+                ) : null}
+              </div>
             </div>
             <p className="mt-2 text-xs text-base-content/65">{ui.scenarioTapToDeactivate}</p>
             <p className="mt-2 text-xs text-base-content/70">
@@ -454,7 +519,11 @@ export function MissionDashboard() {
             </p>
             <p className="mt-1 text-xs text-base-content/65">{envMeta.scenarioContext}</p>
 
-            <div className="mt-4 grid gap-4 lg:grid-cols-2">
+            <fieldset
+              disabled={simControlsLocked}
+              className="mt-4 space-y-4 rounded-field border-0 p-0 disabled:pointer-events-none disabled:opacity-60"
+            >
+            <div className="grid gap-4 lg:grid-cols-2">
               <label className="block max-w-xl">
                 <span className="text-xs font-semibold uppercase tracking-wide text-base-content/65">
                   {ui.crewRoster}
@@ -464,6 +533,7 @@ export function MissionDashboard() {
                   value={selectedAstronautId}
                   onChange={(e) => void onSelectAstronaut(e.target.value)}
                   aria-label={ui.selectAstronaut}
+                  disabled={simControlsLocked}
                 >
                   {roster.map((member) => (
                     <option key={member.id} value={member.id}>
@@ -491,6 +561,7 @@ export function MissionDashboard() {
                       role="tab"
                       aria-selected={environment === id}
                       onClick={() => void onSelectEnvironment(id)}
+                      disabled={simControlsLocked}
                       className={`btn btn-xs sm:btn-sm ${
                         environment === id ? "btn-primary" : "btn-outline"
                       }`}
@@ -501,18 +572,8 @@ export function MissionDashboard() {
                 </div>
               </div>
             </div>
-
-            {mockFeedLabel ? (
-              <p className="mt-2 text-xs text-base-content/70">
-                <span className="font-medium text-emerald-400">{ui.mockGroundFeedConnected}</span>
-                {" · "}
-                {ui.mockGroundFeed}
-                {" — "}
-                <span className="mission-readout">{mockFeedLabel}</span>
-              </p>
-            ) : null}
             <div
-              className="mt-4 flex flex-wrap gap-2"
+              className="flex flex-wrap gap-2"
               role="group"
               aria-label={ui.simulationControls}
             >
@@ -524,6 +585,7 @@ export function MissionDashboard() {
                 inactiveLabel={ui.scenarioInactive}
                 onClick={() => toggleScenario("solar")}
                 tone="amber"
+                disabled={simControlsLocked}
               />
               <ScenarioButton
                 icon={AlertTriangle}
@@ -533,6 +595,7 @@ export function MissionDashboard() {
                 inactiveLabel={ui.scenarioInactive}
                 onClick={() => toggleScenario("cardio")}
                 tone="rose"
+                disabled={simControlsLocked}
               />
               <ScenarioButton
                 icon={Radio}
@@ -542,6 +605,7 @@ export function MissionDashboard() {
                 inactiveLabel={ui.scenarioInactive}
                 onClick={() => toggleScenario("isolation")}
                 tone="violet"
+                disabled={simControlsLocked}
               />
               <ScenarioButton
                 icon={RotateCcw}
@@ -551,8 +615,20 @@ export function MissionDashboard() {
                 inactiveLabel={ui.scenarioInactive}
                 onClick={resetBaseline}
                 tone="neutral"
+                disabled={simControlsLocked}
               />
             </div>
+            </fieldset>
+
+            {mockFeedLabel ? (
+              <p className="mt-2 text-xs text-base-content/70">
+                <span className="font-medium text-emerald-400">{ui.mockGroundFeedConnected}</span>
+                {" · "}
+                {ui.mockGroundFeed}
+                {" — "}
+                <span className="mission-readout">{mockFeedLabel}</span>
+              </p>
+            ) : null}
           </div>
         </section>
 
@@ -561,28 +637,34 @@ export function MissionDashboard() {
             className="space-y-8 xl:col-span-8"
             aria-labelledby="body-systems-heading"
           >
-            <MotionReveal>
-              <h2 id="body-systems-heading" className="mission-section-title mb-4">
-                {ui.bodyMapTitle}
-              </h2>
-              <BodyMap systemStatuses={evaluation.systemStatuses} locale={locale} />
-            </MotionReveal>
+            {!replayFocus ? (
+              <MotionReveal>
+                <section ref={bodyTrackerAnchorRef} id="body-systems-section">
+                  <h2 id="body-systems-heading" className="mission-section-title mb-4">
+                    {ui.bodyMapTitle}
+                  </h2>
+                  <BodyMap systemStatuses={evaluation.systemStatuses} locale={locale} />
+                </section>
+              </MotionReveal>
+            ) : null}
 
             <MotionReveal>
               <h2 className="mission-section-title mb-4">{ui.missionTimeline}</h2>
-              <HealthCharts history={history} locale={locale} environment={environment} />
-            </MotionReveal>
-
-            <MotionReveal>
-              <h2 className="mission-section-title mb-4">{ui.logVitals}</h2>
-              <VitalsInputForm
-                key={`${environment}-${nextDay}`}
-                environment={environment}
-                missionDay={nextDay}
+              <HealthCharts
+                history={history}
                 locale={locale}
-                onSubmit={appendReading}
-                pendingReactionMs={pendingReactionMs}
+                environment={environment}
+                selectedRecordedAt={replayFocus?.recordedAt ?? null}
+                onSelectPoint={onChartDaySelect}
+                animateLines={!simControlsLocked}
               />
+              {replayFocus ? (
+                <DayReplayDetail
+                  reading={replayFocus}
+                  priorHistory={historyBeforeFocus}
+                  locale={locale}
+                />
+              ) : null}
             </MotionReveal>
           </section>
 
@@ -755,6 +837,7 @@ function ScenarioButton({
   active,
   activeLabel,
   inactiveLabel,
+  disabled = false,
 }: {
   icon: typeof Sun;
   label: string;
@@ -763,6 +846,7 @@ function ScenarioButton({
   active: boolean;
   activeLabel: string;
   inactiveLabel: string;
+  disabled?: boolean;
 }) {
   const isOn = active;
   const toneClasses = SCENARIO_TONE_CLASS[tone];
@@ -773,6 +857,7 @@ function ScenarioButton({
       type="button"
       onClick={onClick}
       aria-pressed={isOn}
+      disabled={disabled}
       className={`btn btn-sm gap-2 border font-normal ${
         isOn ? toneClasses.active : toneClasses.idle
       }`}

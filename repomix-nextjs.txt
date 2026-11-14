@@ -77,6 +77,7 @@ src/
     page.tsx
   data/
     astronautRoster.ts
+    intradaySamples.ts
     mockMissionHistory.ts
     nasaKnowledge.ts
   features/
@@ -89,6 +90,8 @@ src/
     rules-engine/
       evaluateHealth.ts
     timeline/
+      buildChartTimeline.ts
+      DayReplayDetail.tsx
       HealthCharts.tsx
     vitals-form/
       MissionRoutinePanel.tsx
@@ -99,6 +102,7 @@ src/
     locale.ts
     mergeMissionScenarios.ts
     missionScenarios.ts
+    missionTime.ts
     statusColors.ts
   types/
     health.ts
@@ -137,6 +141,425 @@ Mode: **Operate** — crew completes health check-in and reads mission status.
 **SEED REFERENCE:** seed: none (unavailable)
 
 **FINISH:** unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance.
+
+================
+File: src/data/intradaySamples.ts
+================
+import type { MissionEnvironment, VitalReadings } from "@/types/health";
+
+/** Generate hourly (or sub-hour) samples for replay drill-down on a selected mission day. */
+export function buildIntradaySamples(
+  daily: VitalReadings,
+  slots = 24
+): VitalReadings[] {
+  const anchor = new Date(daily.recordedAt);
+  const dayStart = new Date(
+    Date.UTC(
+      anchor.getUTCFullYear(),
+      anchor.getUTCMonth(),
+      anchor.getUTCDate(),
+      0,
+      0,
+      0,
+      0
+    )
+  );
+
+  const samples: VitalReadings[] = [];
+  const minutesPerSlot = Math.floor((24 * 60) / slots);
+
+  for (let i = 0; i < slots; i += 1) {
+    const t = new Date(dayStart);
+    t.setUTCMinutes(t.getUTCMinutes() + i * minutesPerSlot);
+    t.setUTCSeconds(15 + (i % 45));
+
+    const phase = i / slots;
+    const wobble = Math.sin(phase * Math.PI * 2);
+    const micro = Math.cos(phase * Math.PI * 4) * 0.5;
+
+    samples.push({
+      ...daily,
+      recordedAt: t.toISOString(),
+      systolicBP: Math.round(daily.systolicBP + wobble * 4 + micro),
+      diastolicBP: Math.round(daily.diastolicBP + wobble * 2),
+      heartRate: Math.round(daily.heartRate + wobble * 5 + (i % 3)),
+      bloodSugar: Math.round(daily.bloodSugar + wobble * 6),
+      temperature: Math.round((daily.temperature + micro * 0.15) * 10) / 10,
+      sleepHours: Math.max(
+        0,
+        Math.round((daily.sleepHours * (0.92 + phase * 0.08) + micro) * 10) / 10
+      ),
+      radiationMsv:
+        daily.radiationMsv !== undefined
+          ? Math.round((daily.radiationMsv / slots + wobble * 0.02) * 1000) / 1000
+          : undefined,
+      moodScore: Math.min(
+        5,
+        Math.max(1, daily.moodScore + (wobble > 0.6 ? 1 : wobble < -0.6 ? -1 : 0))
+      ),
+      stressLevel:
+        daily.stressLevel !== undefined
+          ? Math.min(10, Math.max(1, Math.round(daily.stressLevel + wobble * 1.5)))
+          : undefined,
+      extraMetrics: {
+        ...daily.extraMetrics,
+        intradaySlot: String(i),
+      },
+    });
+  }
+
+  return samples;
+}
+
+export function missionLogEventsForDay(
+  missionDay: number,
+  environment: MissionEnvironment
+): string {
+  const codes: string[] = ["routine_vitals", "habitat_air_check"];
+  if (missionDay % 3 === 0) codes.push("resistive_exercise_block");
+  if (missionDay % 5 === 0) codes.push("hydration_protocol");
+  if (missionDay === 12) codes.push("solar_particle_watch");
+  if (missionDay === 13) codes.push("circadian_light_therapy");
+  if (missionDay === 14) codes.push("ground_sync_window");
+  if (environment === "rover" || environment === "lunar_base") {
+    codes.push("eva_suit_prep");
+  }
+  if (environment === "mars_base" || environment === "spacecraft") {
+    codes.push("autonomous_med_briefing");
+  }
+  return codes.join(",");
+}
+
+================
+File: src/features/timeline/buildChartTimeline.ts
+================
+import { buildMockMissionHistory } from "@/data/mockMissionHistory";
+import { buildIntradaySamples } from "@/data/intradaySamples";
+import type { AppLocale } from "@/lib/locale";
+import { formatDayAxis, formatIntradayAxis } from "@/lib/missionTime";
+import type { ChartTimeGranularity, MissionEnvironment, VitalReadings } from "@/types/health";
+
+export interface ChartTimelineRow {
+  axisLabel: string;
+  missionDay: number;
+  recordedAt: string;
+  systolicBP: number;
+  heartRate: number;
+  sleepHours: number;
+  bloodSugar: number;
+  moodScore: number;
+  radiationMsv: number;
+  radiationCumulative: number;
+  reading: VitalReadings;
+}
+
+const INTRADAY_SLOTS: Record<Exclude<ChartTimeGranularity, "days">, number> = {
+  hours: 24,
+  minutes: 60,
+};
+
+function axisLabelForGranularity(
+  reading: VitalReadings,
+  granularity: ChartTimeGranularity,
+  locale: AppLocale
+): string {
+  if (granularity === "days") {
+    return formatDayAxis(reading.missionDay, reading.recordedAt, locale);
+  }
+  if (granularity === "hours") {
+    const d = new Date(reading.recordedAt);
+    const hour = String(d.getUTCHours()).padStart(2, "0");
+    return locale === "es"
+      ? `D${reading.missionDay} ${hour}:00`
+      : `D${reading.missionDay} ${hour}:00`;
+  }
+  const time = formatIntradayAxis(reading.recordedAt, locale);
+  return locale === "es" ? `D${reading.missionDay} ${time}` : `D${reading.missionDay} ${time}`;
+}
+
+function toChartRow(
+  reading: VitalReadings,
+  cumulative: number,
+  granularity: ChartTimeGranularity,
+  locale: AppLocale
+): ChartTimelineRow {
+  const dose = reading.radiationMsv ?? 0;
+  return {
+    axisLabel: axisLabelForGranularity(reading, granularity, locale),
+    missionDay: reading.missionDay,
+    recordedAt: reading.recordedAt,
+    systolicBP: reading.systolicBP,
+    heartRate: reading.heartRate,
+    sleepHours: reading.sleepHours,
+    bloodSugar: reading.bloodSugar,
+    moodScore: reading.moodScore,
+    radiationMsv: dose,
+    radiationCumulative: Math.round(cumulative * 100) / 100,
+    reading,
+  };
+}
+
+export function buildChartTimeline(
+  history: VitalReadings[],
+  environment: MissionEnvironment,
+  granularity: ChartTimeGranularity,
+  locale: AppLocale
+): { rows: ChartTimelineRow[]; source: VitalReadings[] } {
+  const filtered = history.filter((h) => h.environment === environment);
+  const source = filtered.length >= 10 ? filtered : buildMockMissionHistory(environment);
+
+  const readings: VitalReadings[] =
+    granularity === "days"
+      ? source
+      : source.flatMap((dayRow) =>
+          buildIntradaySamples(dayRow, INTRADAY_SLOTS[granularity])
+        );
+
+  let cumulative = 0;
+  const rows = readings.map((reading) => {
+    cumulative += reading.radiationMsv ?? 0;
+    return toChartRow(reading, cumulative, granularity, locale);
+  });
+
+  return { rows, source };
+}
+
+================
+File: src/features/timeline/DayReplayDetail.tsx
+================
+"use client";
+
+import { useMemo } from "react";
+import {
+  CartesianGrid,
+  Legend,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import { buildIntradaySamples } from "@/data/intradaySamples";
+import { evaluateHealth } from "@/features/rules-engine/evaluateHealth";
+import {
+  ENVIRONMENT_LABELS,
+  MISSION_EVENT_LABELS,
+  type AppLocale,
+  UI_STRINGS,
+  escalationLabel,
+  statusLabelForLocale,
+} from "@/lib/locale";
+import {
+  formatIntradayAxis,
+  formatMissionTimestamp,
+  parseMissionEventCodes,
+} from "@/lib/missionTime";
+import { statusStyles } from "@/lib/statusColors";
+import type { VitalReadings } from "@/types/health";
+
+interface DayReplayDetailProps {
+  reading: VitalReadings;
+  priorHistory: VitalReadings[];
+  locale: AppLocale;
+}
+
+export function DayReplayDetail({ reading, priorHistory, locale }: DayReplayDetailProps) {
+  const ui = UI_STRINGS[locale];
+  const envLabel = ENVIRONMENT_LABELS[locale][reading.environment];
+  const evaluation = useMemo(
+    () => evaluateHealth(reading, priorHistory, locale),
+    [reading, priorHistory, locale]
+  );
+  const overallStyles = statusStyles(evaluation.overallStatus);
+  const events = parseMissionEventCodes(reading.extraMetrics);
+
+  const intraday = useMemo(() => buildIntradaySamples(reading, 24), [reading]);
+  const intradayChart = useMemo(
+    () =>
+      intraday.map((row) => ({
+        time: formatIntradayAxis(row.recordedAt, locale),
+        systolicBP: row.systolicBP,
+        heartRate: row.heartRate,
+        bloodSugar: row.bloodSugar,
+        radiationMsv: row.radiationMsv,
+      })),
+    [intraday, locale]
+  );
+
+  return (
+    <div className="mission-panel mt-4 animate-[reveal_0.45s_cubic-bezier(0.16,1,0.3,1)_both] space-y-4 border border-primary/40 p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="mission-section-title text-base">{ui.dayReplayTitle}</p>
+          <p className="mt-1 text-sm text-base-content/85">
+            {ui.missionDay} {reading.missionDay} ·{" "}
+            {formatMissionTimestamp(reading.recordedAt, locale)} UTC
+          </p>
+          <p className="mt-1 text-sm text-base-content/75">
+            {ui.measuredAtEnvironment}: <span className="font-medium">{envLabel}</span>
+          </p>
+        </div>
+        <div
+          className={`rounded-field px-3 py-2 text-sm ${overallStyles.bg} ${overallStyles.text}`}
+          role="status"
+        >
+          {evaluation.headline} — {statusLabelForLocale(locale, evaluation.overallStatus)}
+        </div>
+      </div>
+
+      {events.length > 0 ? (
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-base-content/65">
+            {ui.dayEventsLabel}
+          </p>
+          <ul className="mt-2 flex flex-wrap gap-2">
+            {events.map((code) => (
+              <li key={code} className="badge badge-outline badge-sm">
+                {MISSION_EVENT_LABELS[locale][code] ?? code}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      <p className="text-xs text-base-content/65">{ui.intradayChartHint}</p>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <ReplayMiniChart
+          title={ui.chartCardio}
+          data={intradayChart}
+          lines={[
+            { key: "systolicBP", name: ui.chartSystolic, color: "#38bdf8" },
+            { key: "heartRate", name: ui.chartHeartRate, color: "#a78bfa" },
+          ]}
+        />
+        <ReplayMiniChart
+          title={ui.chartRecovery}
+          data={intradayChart}
+          lines={[{ key: "bloodSugar", name: ui.chartGlucose, color: "#fbbf24" }]}
+        />
+        <ReplayMiniChart
+          title={ui.chartRadiation}
+          data={intradayChart}
+          lines={[{ key: "radiationMsv", name: ui.vitals.radiationMsv, color: "#f472b6" }]}
+        />
+      </div>
+
+      <div className="grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
+        <VitalChip label={ui.vitals.systolicBP} value={`${reading.systolicBP} mmHg`} />
+        <VitalChip label={ui.vitals.heartRate} value={`${reading.heartRate} bpm`} />
+        <VitalChip label={ui.vitals.bloodSugar} value={`${reading.bloodSugar} mg/dL`} />
+        <VitalChip label={ui.vitals.sleepHours} value={`${reading.sleepHours} h`} />
+      </div>
+
+      <p className="text-xs text-base-content/65">
+        {ui.escalation}: {escalationLabel(locale, evaluation.escalationLevel)}
+      </p>
+    </div>
+  );
+}
+
+function VitalChip({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-field border border-base-300/60 bg-base-100/30 px-3 py-2">
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-base-content/60">
+        {label}
+      </p>
+      <p className="mission-readout text-base-content">{value}</p>
+    </div>
+  );
+}
+
+function ReplayMiniChart({
+  title,
+  data,
+  lines,
+}: {
+  title: string;
+  data: Array<Record<string, string | number | undefined>>;
+  lines: { key: string; name: string; color: string }[];
+}) {
+  return (
+    <div className="rounded-field border border-base-300/50 p-3">
+      <h4 className="mb-2 text-xs font-medium text-base-content/90">{title}</h4>
+      <ResponsiveContainer width="100%" height={160}>
+        <LineChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 4 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+          <XAxis dataKey="time" stroke="#94a3b8" fontSize={10} interval="preserveStartEnd" />
+          <YAxis stroke="#94a3b8" fontSize={10} width={32} />
+          <Tooltip
+            contentStyle={{
+              background: "#0f172a",
+              border: "1px solid #334155",
+              borderRadius: 8,
+              fontSize: 12,
+            }}
+          />
+          <Legend wrapperStyle={{ fontSize: 11 }} />
+          {lines.map((line) => (
+            <Line
+              key={line.key}
+              type="monotone"
+              dataKey={line.key}
+              name={line.name}
+              stroke={line.color}
+              strokeWidth={2}
+              dot={false}
+              isAnimationActive
+              animationDuration={900}
+            />
+          ))}
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+================
+File: src/lib/missionTime.ts
+================
+import type { AppLocale } from "@/lib/locale";
+
+/** Mission-clock label with day + time (includes seconds for chart tooltips). */
+export function formatMissionTimestamp(iso: string, locale: AppLocale): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString(locale === "es" ? "es-ES" : "en-US", {
+    timeZone: "UTC",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+}
+
+export function formatIntradayAxis(iso: string, locale: AppLocale): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleTimeString(locale === "es" ? "es-ES" : "en-US", {
+    timeZone: "UTC",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+}
+
+export function formatDayAxis(day: number, iso: string, locale: AppLocale): string {
+  const time = formatIntradayAxis(iso, locale);
+  return locale === "es" ? `D${day} ${time}` : `D${day} ${time}`;
+}
+
+export function parseMissionEventCodes(
+  extra: Record<string, number | string> | undefined
+): string[] {
+  if (!extra?.missionEvents) return [];
+  const raw = extra.missionEvents;
+  if (typeof raw !== "string" || !raw.trim()) return [];
+  return raw.split(",").map((s) => s.trim()).filter(Boolean);
+}
 
 ================
 File: PRODUCT.md
@@ -657,137 +1080,6 @@ export function buildBodyMuscleState(
 }
 
 ================
-File: src/lib/fakerMissionTelemetry.ts
-================
-import { faker } from "@faker-js/faker";
-import {
-  applyAstronautArchetype,
-  getAstronautById,
-  ASTRONAUT_ROSTER,
-} from "@/data/astronautRoster";
-import { buildMockMissionHistory } from "@/data/mockMissionHistory";
-import type {
-  MissionEnvironment,
-  MockAstronautProfile,
-  VitalReadings,
-} from "@/types/health";
-
-export interface MockGroundCrew {
-  callSign: string;
-  commander: string;
-  medicalOfficer: string;
-  agency: string;
-  habitatModule: string;
-  astronautId?: string;
-  archetype?: MockAstronautProfile["archetype"];
-}
-
-export interface FakerMissionFeed {
-  feedId: string;
-  generatedAt: string;
-  environment: MissionEnvironment;
-  days: number;
-  crew: MockGroundCrew;
-  signalLatencyMs: number;
-  telemetry: VitalReadings[];
-  rosterSize: number;
-}
-
-function seedFromString(value: string): number {
-  let hash = 0;
-  for (let i = 0; i < value.length; i++) {
-    hash = (hash << 5) - hash + value.charCodeAt(i);
-    hash |= 0;
-  }
-  return Math.abs(hash);
-}
-
-const LATENCY_MS: Record<MissionEnvironment, number> = {
-  station: 500,
-  spacecraft: 12 * 60 * 1000,
-  rover: 2600,
-  lunar_base: 2600,
-  mars_base: 18 * 60 * 1000,
-};
-
-const HABITAT_BY_ENV: Record<MissionEnvironment, string[]> = {
-  station: ["ISS USOS", "Columbus", "Kibo"],
-  spacecraft: ["Orion CM", "Deep Space Transport", "Gateway HALO"],
-  rover: ["Artemis LTV", "PRESS Lunar Rover", "Mars Science Rover"],
-  lunar_base: ["Artemis South Pole Habitat", "Lunar Gateway Logistics"],
-  mars_base: ["Mars Ice Home", "Olympus Mons Camp", "Hellas Planitia Lab"],
-};
-
-/** Server-only synthetic ground feed — seeds Faker, layers noise on HRP-shaped baselines. */
-export function buildFakerMissionFeed(
-  environment: MissionEnvironment,
-  days: number,
-  seed?: string,
-  astronautId?: string
-): FakerMissionFeed {
-  const rosterEntry = astronautId ? getAstronautById(astronautId) : undefined;
-  const env = rosterEntry?.homeEnvironment ?? environment;
-  const seedValue = seed ?? `${astronautId ?? env}-${days}`;
-  faker.seed(seedFromString(seedValue));
-
-  let baseline = buildMockMissionHistory(env).slice(0, days).map((row) => ({
-    ...row,
-    environment: env,
-    systolicBP: row.systolicBP + faker.number.int({ min: -3, max: 3 }),
-    diastolicBP: row.diastolicBP + faker.number.int({ min: -2, max: 2 }),
-    heartRate: row.heartRate + faker.number.int({ min: -4, max: 4 }),
-    bloodSugar: row.bloodSugar + faker.number.int({ min: -5, max: 5 }),
-    temperature:
-      Math.round((row.temperature + faker.number.float({ min: -0.15, max: 0.15 })) * 10) /
-      10,
-    sleepHours:
-      Math.round((row.sleepHours + faker.number.float({ min: -0.3, max: 0.3 })) * 10) / 10,
-    recordedAt: row.recordedAt,
-  }));
-
-  if (rosterEntry) {
-    baseline = applyAstronautArchetype(
-      baseline,
-      rosterEntry.archetype,
-      rosterEntry.typicalScenarios
-    );
-    const last = baseline[baseline.length - 1];
-    if (last) {
-      last.extraMetrics = {
-        ...last.extraMetrics,
-        astronautId: rosterEntry.id,
-      };
-    }
-  }
-
-  const crewName = rosterEntry?.fullName ?? faker.person.fullName();
-  const callSign = rosterEntry?.callSign ?? `Artemis-${faker.number.int({ min: 410, max: 420 })}`;
-
-  return {
-    feedId: faker.string.uuid(),
-    generatedAt: new Date().toISOString(),
-    environment: env,
-    days,
-    signalLatencyMs: LATENCY_MS[env],
-    rosterSize: ASTRONAUT_ROSTER.length,
-    crew: {
-      callSign,
-      commander: crewName,
-      medicalOfficer: rosterEntry?.role ?? faker.person.fullName(),
-      agency: rosterEntry?.agency ?? faker.helpers.arrayElement(["NASA", "CSA", "ESA", "JAXA"]),
-      habitatModule: faker.helpers.arrayElement(HABITAT_BY_ENV[env]),
-      astronautId: rosterEntry?.id,
-      archetype: rosterEntry?.archetype,
-    },
-    telemetry: baseline,
-  };
-}
-
-export function listRosterForApi(): MockAstronautProfile[] {
-  return ASTRONAUT_ROSTER;
-}
-
-================
 File: src/lib/fetchMissionFeed.ts
 ================
 import type { FakerMissionFeed } from "@/lib/fakerMissionTelemetry";
@@ -1137,46 +1429,6 @@ const nextConfig: NextConfig = {
 export default nextConfig;
 
 ================
-File: README.md
-================
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
-
-## Getting Started
-
-First, run the development server:
-
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-
-================
 File: tsconfig.json
 ================
 {
@@ -1251,6 +1503,325 @@ export async function GET(request: Request) {
     telemetry: logs,
     note: "Optional demo feed — does not replace offline evaluateHealth().",
   });
+}
+
+================
+File: src/lib/fakerMissionTelemetry.ts
+================
+import { faker } from "@faker-js/faker";
+import {
+  applyAstronautArchetype,
+  getAstronautById,
+  ASTRONAUT_ROSTER,
+} from "@/data/astronautRoster";
+import { buildMockMissionHistory } from "@/data/mockMissionHistory";
+import type {
+  MissionEnvironment,
+  MockAstronautProfile,
+  VitalReadings,
+} from "@/types/health";
+
+export interface MockGroundCrew {
+  callSign: string;
+  commander: string;
+  medicalOfficer: string;
+  agency: string;
+  habitatModule: string;
+  astronautId?: string;
+  archetype?: MockAstronautProfile["archetype"];
+}
+
+export interface FakerMissionFeed {
+  feedId: string;
+  generatedAt: string;
+  environment: MissionEnvironment;
+  days: number;
+  crew: MockGroundCrew;
+  signalLatencyMs: number;
+  telemetry: VitalReadings[];
+  rosterSize: number;
+}
+
+function seedFromString(value: string): number {
+  let hash = 0;
+  for (let i = 0; i < value.length; i++) {
+    hash = (hash << 5) - hash + value.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
+const LATENCY_MS: Record<MissionEnvironment, number> = {
+  station: 500,
+  spacecraft: 12 * 60 * 1000,
+  rover: 2600,
+  lunar_base: 2600,
+  mars_base: 18 * 60 * 1000,
+};
+
+const HABITAT_BY_ENV: Record<MissionEnvironment, string[]> = {
+  station: ["ISS USOS", "Columbus", "Kibo"],
+  spacecraft: ["Orion CM", "Deep Space Transport", "Gateway HALO"],
+  rover: ["Artemis LTV", "PRESS Lunar Rover", "Mars Science Rover"],
+  lunar_base: ["Artemis South Pole Habitat", "Lunar Gateway Logistics"],
+  mars_base: ["Mars Ice Home", "Olympus Mons Camp", "Hellas Planitia Lab"],
+};
+
+/** Server-only synthetic ground feed — seeds Faker, layers noise on HRP-shaped baselines. */
+export function buildFakerMissionFeed(
+  environment: MissionEnvironment,
+  days: number,
+  seed?: string,
+  astronautId?: string
+): FakerMissionFeed {
+  const rosterEntry = astronautId ? getAstronautById(astronautId) : undefined;
+  /** User-selected mission context; do not override with crew home habitat. */
+  const env = environment;
+  const seedValue = seed ?? `${astronautId ?? "crew"}-${env}-${days}`;
+  faker.seed(seedFromString(seedValue));
+
+  let baseline = buildMockMissionHistory(env).slice(0, days).map((row) => ({
+    ...row,
+    environment: env,
+    systolicBP: row.systolicBP + faker.number.int({ min: -3, max: 3 }),
+    diastolicBP: row.diastolicBP + faker.number.int({ min: -2, max: 2 }),
+    heartRate: row.heartRate + faker.number.int({ min: -4, max: 4 }),
+    bloodSugar: row.bloodSugar + faker.number.int({ min: -5, max: 5 }),
+    temperature:
+      Math.round((row.temperature + faker.number.float({ min: -0.15, max: 0.15 })) * 10) /
+      10,
+    sleepHours:
+      Math.round((row.sleepHours + faker.number.float({ min: -0.3, max: 0.3 })) * 10) / 10,
+    recordedAt: row.recordedAt,
+  }));
+
+  if (rosterEntry) {
+    baseline = applyAstronautArchetype(
+      baseline,
+      rosterEntry.archetype,
+      rosterEntry.typicalScenarios
+    );
+    const last = baseline[baseline.length - 1];
+    if (last) {
+      last.extraMetrics = {
+        ...last.extraMetrics,
+        astronautId: rosterEntry.id,
+      };
+    }
+  }
+
+  const crewName = rosterEntry?.fullName ?? faker.person.fullName();
+  const callSign = rosterEntry?.callSign ?? `Artemis-${faker.number.int({ min: 410, max: 420 })}`;
+
+  return {
+    feedId: faker.string.uuid(),
+    generatedAt: new Date().toISOString(),
+    environment: env,
+    days,
+    signalLatencyMs: LATENCY_MS[env],
+    rosterSize: ASTRONAUT_ROSTER.length,
+    crew: {
+      callSign,
+      commander: crewName,
+      medicalOfficer: rosterEntry?.role ?? faker.person.fullName(),
+      agency: rosterEntry?.agency ?? faker.helpers.arrayElement(["NASA", "CSA", "ESA", "JAXA"]),
+      habitatModule: faker.helpers.arrayElement(HABITAT_BY_ENV[env]),
+      astronautId: rosterEntry?.id,
+      archetype: rosterEntry?.archetype,
+    },
+    telemetry: baseline,
+  };
+}
+
+export function listRosterForApi(): MockAstronautProfile[] {
+  return ASTRONAUT_ROSTER;
+}
+
+================
+File: README.md
+================
+# Mission Health Control
+
+Offline-first astronaut health monitoring demo for **NASA Space Apps Challenge**. The browser runs deterministic evaluation inspired by NASA Human Research Program (HRP) thresholds—no blocking API required for core UX.
+
+## Features
+
+- **Mission dashboard** — crew profile, communication latency, and environment-specific hazards
+- **Body map** — status by body system with linked NASA hazard education
+- **Mission timeline charts** — 14-day cardiovascular, recovery, and radiation trends
+- **Vitals check-in** — guided daily log with optional camera/ultrasound attachment
+- **Rules engine** — `evaluateHealth()` with escalation: self-care → crew → ground flight surgeon
+- **Mission scenarios** — solar particles, cardio/dehydration, isolation (stackable simulations)
+
+## Stack
+
+Next.js (App Router), TypeScript, Tailwind CSS, daisyUI, `lucide-react`, Recharts.
+
+## Getting started
+
+```bash
+npm install
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000).
+
+## Scripts
+
+```bash
+npm run dev      # local development
+npm run build    # production build (run before deploy)
+npm run lint     # ESLint
+```
+
+## Architecture
+
+| Area | Path |
+|------|------|
+| Dashboard shell | `src/features/dashboard/` |
+| Body map | `src/features/body-map/` |
+| Charts | `src/features/timeline/` |
+| Vitals form | `src/features/vitals-form/` |
+| Offline evaluator | `src/features/rules-engine/evaluateHealth.ts` |
+| Shared health types | `src/types/health.ts` |
+| HRP copy & thresholds | `src/data/nasaKnowledge.ts` |
+
+Optional API routes under `src/app/api/` simulate ground sync; clinical evaluation remains client-side.
+
+## Official references
+
+- [NASA HRP — Spaceflight Hazards](https://www.nasa.gov/hrp/hazards/)
+- [NASA HRP — Human Health Risks](https://www.nasa.gov/hrp/risks/)
+- [NASA HRP — Ongoing Research](https://www.nasa.gov/hrp/ongoing-hrp-research/)
+- [CSA — Monitoring radiation & astronaut health](https://www.asc-csa.gc.ca/eng/news/articles/2026/2026-02-26-monitoring-radiation-astronaut-health.asp)
+- [CSA — Science on the ISS](https://www.asc-csa.gc.ca/eng/iss/science/why-do-we-conduct-science-experiments-in-space.asp)
+
+## License
+
+Built for NASA Space Apps 2026. See repository license if present.
+
+================
+File: shared/types.ts
+================
+/**
+ * Workspace re-export — keep feature code importing from here or @/types/health in sync.
+ */
+export type {
+  SpaceflightHazard,
+  MissionEnvironment,
+  HealthStatus,
+  EscalationLevel,
+  BodySystemStatus,
+  OfficialReferenceLink,
+  MissionProfile,
+  VitalReadings,
+  SystemStatusEntry,
+  ActionableGuidance,
+  HealthEvaluation,
+  HazardKnowledgeBlock,
+  VitalsFormMetric,
+  ExamThreshold,
+  EnvironmentMissionMeta,
+  MissionScenarioId,
+  ChartTimeGranularity,
+  AstronautHealthArchetype,
+  MockAstronautProfile,
+} from "../src/types/health";
+
+================
+File: src/app/api/health-log/route.ts
+================
+import { NextResponse } from "next/server";
+import { buildMockMissionHistory } from "@/data/mockMissionHistory";
+import type { MissionEnvironment, VitalReadings } from "@/types/health";
+
+/** In-memory stub for ground-sync demos — resets on deploy (Render ephemeral FS). */
+const memoryLogs: VitalReadings[] = [];
+
+function parseEnvironment(value: string | null): MissionEnvironment {
+  if (
+    value === "station" ||
+    value === "spacecraft" ||
+    value === "rover" ||
+    value === "lunar_base" ||
+    value === "mars_base"
+  ) {
+    return value;
+  }
+  return "station";
+}
+
+function simulateLatencyMs(environment: MissionEnvironment): number {
+  const map: Record<MissionEnvironment, number> = {
+    station: 500,
+    spacecraft: 12 * 60 * 1000,
+    rover: 2600,
+    lunar_base: 2600,
+    mars_base: 18 * 60 * 1000,
+  };
+  return map[environment];
+}
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const environment = parseEnvironment(searchParams.get("environment"));
+  const days = Math.min(
+    30,
+    Math.max(1, parseInt(searchParams.get("days") ?? "14", 10) || 14)
+  );
+
+  if (searchParams.get("environment") || searchParams.get("days")) {
+    const synthetic = buildMockMissionHistory(environment).slice(0, days);
+    return NextResponse.json({
+      ok: true,
+      mode: "synthetic_telemetry",
+      environment,
+      days,
+      logs: synthetic,
+      signalLatencyMs: simulateLatencyMs(environment),
+      note: "Synthetic telemetry for demos; client evaluation remains offline-first.",
+    });
+  }
+
+  return NextResponse.json({
+    ok: true,
+    count: memoryLogs.length,
+    logs: memoryLogs,
+    note: "Client-side evaluation works fully offline; this endpoint is optional.",
+  });
+}
+
+interface PostPayload extends VitalReadings {
+  syncAck?: boolean;
+}
+
+export async function POST(request: Request) {
+  try {
+    const body = (await request.json()) as PostPayload;
+    if (typeof body.missionDay !== "number" || !body.recordedAt) {
+      return NextResponse.json(
+        { ok: false, error: "Invalid vitals payload" },
+        { status: 400 }
+      );
+    }
+
+    const { syncAck, ...vitals } = body;
+    memoryLogs.push(vitals);
+
+    const latencyMs = simulateLatencyMs(vitals.environment ?? "station");
+    await new Promise((resolve) => setTimeout(resolve, Math.min(latencyMs, 1500)));
+
+    return NextResponse.json({
+      ok: true,
+      received: vitals.missionDay,
+      groundSyncAck: syncAck === true,
+      simulatedSignalLatencyMs: latencyMs,
+      message:
+        "Ground control acknowledged receipt (simulated). Clinical rules already ran on-device.",
+    });
+  } catch {
+    return NextResponse.json({ ok: false, error: "Bad JSON" }, { status: 400 });
+  }
 }
 
 ================
@@ -1417,6 +1988,196 @@ File: src/app/globals.css
 }
 
 ================
+File: src/app/layout.tsx
+================
+import type { Metadata } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
+import "./globals.css";
+
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
+
+export const metadata: Metadata = {
+  title: "Mission Health Control | NASA Space Apps",
+  description:
+    "Offline-first astronaut health monitoring for space missions.",
+};
+
+export default function RootLayout({ children }: LayoutProps<"/">) {
+  return (
+    <html
+      lang="en"
+      data-theme="mission"
+      className={`${geistSans.variable} ${geistMono.variable} h-full`}
+    >
+      <body className="flex min-h-full flex-col">{children}</body>
+    </html>
+  );
+}
+
+================
+File: src/data/mockMissionHistory.ts
+================
+import type { MissionEnvironment, VitalReadings } from "@/types/health";
+import { missionLogEventsForDay } from "@/data/intradaySamples";
+
+const baseDate = new Date("2026-11-01T00:00:00Z");
+
+function entry(
+  day: number,
+  partial: Partial<VitalReadings> & Pick<VitalReadings, "environment">
+): VitalReadings {
+  const d = new Date(baseDate);
+  d.setUTCDate(d.getUTCDate() + day - 1);
+  /** Stagger daily rollup time (hours:minutes:seconds UTC) per mission day. */
+  d.setUTCHours(6 + (day % 12), (day * 7) % 60, (day * 11) % 60, 0);
+  const env = partial.environment;
+  return {
+    missionDay: day,
+    recordedAt: d.toISOString(),
+    systolicBP: 118,
+    diastolicBP: 76,
+    heartRate: 72,
+    bloodSugar: 98,
+    temperature: 36.7,
+    sleepHours: 7.2,
+    moodScore: 4,
+    stressLevel: 3,
+    radiationMsv: 0.4 + day * 0.02,
+    ...partial,
+    environment: env,
+    extraMetrics: {
+      ...(partial.extraMetrics ?? {}),
+      missionEvents: missionLogEventsForDay(day, env),
+    },
+  };
+}
+
+/** 14 mission days — subtle upward BP / downward sleep trend after day 9 */
+export function buildMockMissionHistory(
+  environment: MissionEnvironment = "station"
+): VitalReadings[] {
+  const env = environment;
+  const days: VitalReadings[] = [];
+
+  for (let day = 1; day <= 14; day++) {
+    let systolic = 112 + Math.sin(day / 3) * 4;
+    let diastolic = 74;
+    let heartRate = 68 + (day % 3);
+    let sleep = 7.4 - (day > 10 ? 0.15 * (day - 10) : 0);
+    let mood = day > 11 ? 3 : 4;
+    let glucose = 95 + (day > 8 ? (day - 8) * 2 : 0);
+    let stress = day > 12 ? 5 : 3;
+
+    if (day === 12) {
+      systolic = 138;
+      diastolic = 92;
+      heartRate = 98;
+    }
+    if (day === 13) {
+      sleep = 4.5;
+      mood = 2;
+      stress = 6;
+    }
+    if (day === 14) {
+      systolic = 142;
+      glucose = 165;
+    }
+
+    const envDoseBoost =
+      env === "mars_base" ? 0.12 : env === "spacecraft" ? 0.08 : env === "rover" ? 0.05 : 0;
+    const radiationMsv = day >= 14 ? 0.85 + envDoseBoost : 0.35 + day * 0.03 + envDoseBoost;
+
+    days.push(
+      entry(day, {
+        environment: env,
+        systolicBP: Math.round(systolic),
+        diastolicBP: Math.round(diastolic),
+        heartRate: Math.round(heartRate),
+        bloodSugar: Math.round(glucose),
+        temperature: 36.5 + (day === 13 ? 0.4 : 0.2),
+        sleepHours: Math.round(sleep * 10) / 10,
+        moodScore: mood,
+        stressLevel: stress,
+        radiationMsv,
+      })
+    );
+  }
+
+  return days;
+}
+
+export const MOCK_MISSION_HISTORY = buildMockMissionHistory("station");
+
+function scenarioBase(environment: MissionEnvironment): VitalReadings {
+  const last = buildMockMissionHistory(environment).slice(-1)[0];
+  return {
+    ...last,
+    missionDay: (last?.missionDay ?? 14) + 1,
+    recordedAt: new Date().toISOString(),
+    environment,
+  };
+}
+
+/** Solar Particle Event — high radiation, fatigue, elevated HR */
+export function solarParticleScenario(
+  environment: MissionEnvironment = "station"
+): VitalReadings {
+  const base = scenarioBase(environment);
+  return {
+    ...base,
+    radiationMsv: 1.75,
+    heartRate: 108,
+    sleepHours: 5.2,
+    moodScore: 3,
+    stressLevel: 7,
+    extraMetrics: { fatigueLevel: "elevated" },
+  };
+}
+
+/** Cardio / microgravity dehydration — ground flight surgeon */
+export function cardioDehydrationScenario(
+  environment: MissionEnvironment = "station"
+): VitalReadings {
+  const base = scenarioBase(environment);
+  return {
+    ...base,
+    systolicBP: 166,
+    diastolicBP: 102,
+    heartRate: 124,
+    temperature: 38.3,
+    bloodSugar: 118,
+    stressLevel: 6,
+    radiationMsv: 0.6,
+  };
+}
+
+/** Isolation & circadian drift — crew attention */
+export function isolationDriftScenario(
+  environment: MissionEnvironment = "station"
+): VitalReadings {
+  const base = scenarioBase(environment);
+  return {
+    ...base,
+    sleepHours: 3.8,
+    moodScore: 2,
+    stressLevel: 8,
+    heartRate: 86,
+    extraMetrics: { reactionTimeMs: 540 },
+  };
+}
+
+/** @deprecated Use scenario helpers instead */
+export const CRITICAL_SCENARIO_READING: VitalReadings = cardioDehydrationScenario("station");
+
+================
 File: src/data/nasaKnowledge.ts
 ================
 import type { ExamThreshold, HazardKnowledgeBlock } from "@/types/health";
@@ -1464,12 +2225,13 @@ export const NASA_HAZARDS_KNOWLEDGE: HazardKnowledgeBlock[] = [
     shortDescription:
       "Small crews far from home can affect sleep, mood, and team coordination.",
     whyMonitorInSpace:
-      "Mood and sleep are early signs of stress. Catching trends early helps the crew support each other.",
+      "Mood, sleep, and neuro-ocular signs (SANS) are early stress indicators. Catching trends early helps the crew support each other.",
     whatCanBeMeasured: [
       "Mood score (1–5)",
       "Stress level (1–10)",
       "Sleep hours",
       "Heart rate at rest",
+      "Vision / neuro-ocular self-checks (SANS)",
     ],
     preventiveActions: [
       "Keep a daily check-in routine",
@@ -1552,7 +2314,7 @@ export const NASA_HAZARDS_KNOWLEDGE: HazardKnowledgeBlock[] = [
     hazard: "closed_environment",
     title: "Closed environment",
     shortDescription:
-      "Recycled air and water, noise, and CO₂ can affect sleep and metabolism.",
+      "Recycled air and water, elevated CO₂, and noise can affect sleep, metabolism, and mild hypoxia symptoms.",
     whyMonitorInSpace:
       "Temperature, hydration, and blood sugar help detect dehydration or poor recovery in the cabin.",
     whatCanBeMeasured: [
@@ -1695,6 +2457,587 @@ export const MEASUREMENT_GUIDE: Record<
 export const RADIATION_CHART_CAUTION_MSV = 1.0;
 
 ================
+File: src/types/health.ts
+================
+/** NASA Human Research Program–style spaceflight hazards */
+export type SpaceflightHazard =
+  | "radiation"
+  | "isolation"
+  | "distance"
+  | "gravity"
+  | "closed_environment";
+
+export type MissionEnvironment =
+  | "spacecraft"
+  | "station"
+  | "rover"
+  | "lunar_base"
+  | "mars_base";
+
+export type HealthStatus = "normal" | "warning" | "critical";
+
+export type EscalationLevel =
+  | "self_care"
+  | "crew_attention"
+  | "ground_flight_surgeon";
+
+export type BodySystemStatus =
+  | "cardiovascular"
+  | "neuro_behavioral"
+  | "metabolic"
+  | "immune_musculoskeletal";
+
+/** Demo mission scenario toggles in the dashboard simulation row */
+export type MissionScenarioId = "solar" | "cardio" | "isolation";
+
+/** Mission timeline chart bucket for HealthCharts time-scale toggles */
+export type ChartTimeGranularity = "minutes" | "hours" | "days";
+
+export type AstronautHealthArchetype =
+  | "healthy"
+  | "cardio_warning"
+  | "radiation_exposure"
+  | "isolation_stress"
+  | "metabolic_drift"
+  | "multi_system_critical";
+
+export interface MockAstronautProfile {
+  id: string;
+  callSign: string;
+  fullName: string;
+  agency: string;
+  role: string;
+  archetype: AstronautHealthArchetype;
+  homeEnvironment: MissionEnvironment;
+  /** Optional demo scenarios that match this crew member's chart */
+  typicalScenarios: MissionScenarioId[];
+}
+
+export interface OfficialReferenceLink {
+  label: string;
+  url: string;
+}
+
+export interface MissionProfile {
+  missionName: string;
+  commanderRole: string;
+  medicalOfficerRole: string;
+  program: string;
+}
+
+export interface VitalReadings {
+  missionDay: number;
+  recordedAt: string;
+  environment: MissionEnvironment;
+  systolicBP: number;
+  diastolicBP: number;
+  heartRate: number;
+  bloodSugar: number;
+  temperature: number;
+  sleepHours: number;
+  moodScore: number;
+  radiationMsv?: number;
+  /** 1 = calm, 10 = extreme stress */
+  stressLevel?: number;
+  imageNoteOrDataUrl?: string;
+  extraMetrics?: Record<string, number | string>;
+}
+
+export interface SystemStatusEntry {
+  system: BodySystemStatus;
+  status: HealthStatus;
+  summary: string;
+}
+
+export interface ActionableGuidance {
+  whyNeededInSpace: string;
+  hazardImpact: SpaceflightHazard[];
+  recommendedActions: string[];
+}
+
+export interface HealthEvaluation {
+  overallStatus: HealthStatus;
+  escalationLevel: EscalationLevel;
+  systemStatuses: SystemStatusEntry[];
+  guidance: ActionableGuidance[];
+  headline: string;
+}
+
+export interface HazardKnowledgeBlock {
+  hazard: SpaceflightHazard;
+  title: string;
+  shortDescription: string;
+  whyMonitorInSpace: string;
+  whatCanBeMeasured: string[];
+  preventiveActions: string[];
+  relatedSystems: BodySystemStatus[];
+  hrpRisks?: string[];
+  officialLinks?: OfficialReferenceLink[];
+}
+
+export type VitalsFormMetric =
+  | keyof Pick<
+      VitalReadings,
+      | "systolicBP"
+      | "diastolicBP"
+      | "heartRate"
+      | "bloodSugar"
+      | "temperature"
+      | "sleepHours"
+      | "moodScore"
+    >
+  | "radiationMsv"
+  | "stressLevel";
+
+export interface ExamThreshold {
+  metric: VitalsFormMetric;
+  normal: { min?: number; max?: number };
+  warning: { min?: number; max?: number };
+  unit: string;
+  label: string;
+}
+
+export interface EnvironmentMissionMeta {
+  latencyLabel: string;
+  latencyMs: number;
+  primaryHazards: SpaceflightHazard[];
+  autonomyNote: string;
+  habitatName: string;
+  operationsContext: string;
+  healthFocus: string;
+  scenarioContext: string;
+}
+
+================
+File: package.json
+================
+{
+  "name": "healthnasa",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@emmorts/body-muscles": "^2.1.1",
+    "@faker-js/faker": "^10.6.0",
+    "lucide-react": "^1.73.0",
+    "next": "16.4.6",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "recharts": "^3.10.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/turbopack": "4.3.3",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "daisyui": "^5.8.0",
+    "eslint": "^9",
+    "eslint-config-next": "16.4.6",
+    "tailwindcss": "4.3.3",
+    "typescript": "^5"
+  }
+}
+
+================
+File: src/features/rules-engine/evaluateHealth.ts
+================
+import { EXAM_THRESHOLDS, NASA_HAZARDS_KNOWLEDGE } from "@/data/nasaKnowledge";
+import { EVALUATOR_COPY, ENVIRONMENT_MISSION_META, type AppLocale } from "@/lib/locale";
+import type {
+  ActionableGuidance,
+  BodySystemStatus,
+  EscalationLevel,
+  HealthEvaluation,
+  HealthStatus,
+  MissionEnvironment,
+  SpaceflightHazard,
+  SystemStatusEntry,
+  VitalReadings,
+} from "@/types/health";
+
+function radiationStatusForEnvironment(
+  dose: number,
+  environment: MissionEnvironment
+): HealthStatus {
+  const deepSpace =
+    environment === "spacecraft" || environment === "mars_base";
+  const warningAt = deepSpace ? 0.85 : 1.0;
+  const criticalAt = deepSpace ? 1.2 : 1.5;
+  if (dose > criticalAt) return "critical";
+  if (dose > warningAt) return "warning";
+  return "normal";
+}
+
+function scoreMetric(
+  value: number,
+  normal: { min?: number; max?: number },
+  warning: { min?: number; max?: number }
+): HealthStatus {
+  const inRange = (range: { min?: number; max?: number }, v: number) => {
+    if (range.min !== undefined && v < range.min) return false;
+    if (range.max !== undefined && v > range.max) return false;
+    return true;
+  };
+  if (inRange(normal, value)) return "normal";
+  if (inRange(warning, value)) return "warning";
+  return "critical";
+}
+
+function trendDelta(recent: VitalReadings[], pick: (v: VitalReadings) => number): number {
+  if (recent.length < 2) return 0;
+  const sorted = [...recent].sort((a, b) => a.missionDay - b.missionDay);
+  const last = sorted[sorted.length - 1];
+  const prev = sorted[sorted.length - 2];
+  return pick(last) - pick(prev);
+}
+
+function worst(a: HealthStatus, b: HealthStatus): HealthStatus {
+  const rank: Record<HealthStatus, number> = {
+    normal: 0,
+    warning: 1,
+    critical: 2,
+  };
+  return rank[a] >= rank[b] ? a : b;
+}
+
+function systemForMetric(metric: string): BodySystemStatus {
+  const map: Record<string, BodySystemStatus> = {
+    systolicBP: "cardiovascular",
+    diastolicBP: "cardiovascular",
+    heartRate: "cardiovascular",
+    bloodSugar: "metabolic",
+    temperature: "metabolic",
+    sleepHours: "neuro_behavioral",
+    moodScore: "neuro_behavioral",
+    stressLevel: "neuro_behavioral",
+    radiationMsv: "immune_musculoskeletal",
+  };
+  return map[metric] ?? "immune_musculoskeletal";
+}
+
+function buildGuidance(
+  hazards: Set<SpaceflightHazard>,
+  actions: string[],
+  why: string
+): ActionableGuidance {
+  const hazardImpact = NASA_HAZARDS_KNOWLEDGE.filter((h) =>
+    hazards.has(h.hazard)
+  ).map((h) => h.hazard);
+  return {
+    whyNeededInSpace: why,
+    hazardImpact,
+    recommendedActions: actions,
+  };
+}
+
+function reactionTimeMs(current: VitalReadings): number | undefined {
+  const raw = current.extraMetrics?.reactionTimeMs;
+  if (typeof raw === "number") return raw;
+  if (typeof raw === "string") {
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : undefined;
+  }
+  return undefined;
+}
+
+/**
+ * Pure offline evaluator — Dev 2 extends thresholds and escalation rules here.
+ */
+export function evaluateHealth(
+  current: VitalReadings,
+  recentHistory: VitalReadings[] = [],
+  locale: AppLocale = "en"
+): HealthEvaluation {
+  const copy = EVALUATOR_COPY[locale];
+  const environment = current.environment;
+  const envMeta = ENVIRONMENT_MISSION_META[locale][environment];
+  const history = [...recentHistory, current].sort(
+    (a, b) => a.missionDay - b.missionDay
+  );
+
+  const metricStatuses: Record<string, HealthStatus> = {};
+  for (const th of EXAM_THRESHOLDS) {
+    if (th.metric === "radiationMsv" || th.metric === "stressLevel") continue;
+    const value = current[th.metric] as number;
+    metricStatuses[th.metric] = scoreMetric(value, th.normal, th.warning);
+  }
+
+  if (current.radiationMsv !== undefined) {
+    const st = radiationStatusForEnvironment(current.radiationMsv, environment);
+    metricStatuses.radiationMsv = st;
+    metricStatuses.radiation = st;
+  }
+
+  if (current.stressLevel !== undefined) {
+    const stress = current.stressLevel;
+    let st: HealthStatus = "normal";
+    if (stress >= 8) st = "critical";
+    else if (stress >= 6) st = "warning";
+    metricStatuses.stressLevel = st;
+  }
+
+  const reactionMs = reactionTimeMs(current);
+  if (reactionMs !== undefined) {
+    let st: HealthStatus = "normal";
+    if (reactionMs > 650) st = "critical";
+    else if (reactionMs > 450) st = "warning";
+    metricStatuses.reactionTimeMs = st;
+  }
+
+  const bpTrend = trendDelta(history, (v) => v.systolicBP);
+  const sleepTrend = trendDelta(history, (v) => v.sleepHours);
+  if (bpTrend >= 8) {
+    metricStatuses.systolicBP = worst(metricStatuses.systolicBP, "warning");
+  }
+  if (sleepTrend <= -1.5) {
+    metricStatuses.sleepHours = worst(metricStatuses.sleepHours, "warning");
+  }
+
+  const bySystem = new Map<BodySystemStatus, HealthStatus>();
+  for (const th of EXAM_THRESHOLDS) {
+    if (th.metric === "radiationMsv" || th.metric === "stressLevel") continue;
+    const sys = systemForMetric(th.metric);
+    const st = metricStatuses[th.metric];
+    bySystem.set(sys, worst(bySystem.get(sys) ?? "normal", st));
+  }
+  if (metricStatuses.radiation === "warning" || metricStatuses.radiation === "critical") {
+    bySystem.set(
+      "immune_musculoskeletal",
+      worst(bySystem.get("immune_musculoskeletal") ?? "normal", metricStatuses.radiation)
+    );
+  }
+  if (metricStatuses.stressLevel) {
+    bySystem.set(
+      "neuro_behavioral",
+      worst(bySystem.get("neuro_behavioral") ?? "normal", metricStatuses.stressLevel)
+    );
+  }
+  if (metricStatuses.reactionTimeMs) {
+    bySystem.set(
+      "neuro_behavioral",
+      worst(bySystem.get("neuro_behavioral") ?? "normal", metricStatuses.reactionTimeMs)
+    );
+  }
+
+  const systemStatuses: SystemStatusEntry[] = (
+    [
+      "cardiovascular",
+      "neuro_behavioral",
+      "metabolic",
+      "immune_musculoskeletal",
+    ] as const
+  ).map((system) => ({
+    system,
+    status: bySystem.get(system) ?? "normal",
+    summary:
+      (bySystem.get(system) ?? "normal") === "normal"
+        ? copy.systemNormal
+        : copy.systemWarning,
+  }));
+
+  let overallStatus: HealthStatus = "normal";
+  for (const st of Object.values(metricStatuses)) {
+    overallStatus = worst(overallStatus, st);
+  }
+  for (const s of systemStatuses) {
+    overallStatus = worst(overallStatus, s.status);
+  }
+
+  let escalationLevel: EscalationLevel = "self_care";
+  if (overallStatus === "warning") escalationLevel = "crew_attention";
+  if (overallStatus === "critical") escalationLevel = "ground_flight_surgeon";
+  if (
+    (environment === "spacecraft" || environment === "mars_base") &&
+    metricStatuses.radiation === "warning"
+  ) {
+    escalationLevel = worstEscalation(escalationLevel, "crew_attention");
+  }
+  if (
+    current.systolicBP >= 160 ||
+    current.heartRate >= 120 ||
+    current.temperature >= 38.2
+  ) {
+    escalationLevel = "ground_flight_surgeon";
+    overallStatus = "critical";
+  }
+  if (
+    (current.stressLevel !== undefined && current.stressLevel >= 8) ||
+    (metricStatuses.reactionTimeMs === "warning" ||
+      metricStatuses.reactionTimeMs === "critical")
+  ) {
+    escalationLevel = worstEscalation(escalationLevel, "crew_attention");
+    if (
+      current.stressLevel !== undefined &&
+      current.stressLevel >= 8 &&
+      (metricStatuses.sleepHours === "critical" ||
+        metricStatuses.moodScore === "critical")
+    ) {
+      escalationLevel = worstEscalation(escalationLevel, "crew_attention");
+    }
+  }
+
+  const guidance: ActionableGuidance[] = [];
+
+  if (
+    metricStatuses.systolicBP !== "normal" ||
+    metricStatuses.heartRate !== "normal"
+  ) {
+    guidance.push(
+      buildGuidance(
+        new Set(["gravity", "distance"]),
+        copy.guidance.cardio.actions,
+        copy.guidance.cardio.why
+      )
+    );
+  }
+
+  if (
+    metricStatuses.sleepHours !== "normal" ||
+    metricStatuses.moodScore !== "normal" ||
+    (metricStatuses.stressLevel && metricStatuses.stressLevel !== "normal") ||
+    (metricStatuses.reactionTimeMs && metricStatuses.reactionTimeMs !== "normal")
+  ) {
+    guidance.push(
+      buildGuidance(
+        new Set(["isolation", "closed_environment"]),
+        copy.guidance.neuro.actions,
+        copy.guidance.neuro.why
+      )
+    );
+  }
+
+  if (metricStatuses.bloodSugar !== "normal" || metricStatuses.temperature !== "normal") {
+    guidance.push(
+      buildGuidance(
+        new Set(["closed_environment", "distance"]),
+        copy.guidance.metabolic.actions,
+        copy.guidance.metabolic.why
+      )
+    );
+  }
+
+  if (metricStatuses.radiation === "warning" || metricStatuses.radiation === "critical") {
+    guidance.push(
+      buildGuidance(
+        new Set(["radiation"]),
+        [
+          locale === "es"
+            ? "Refugio en módulo blindado y repetir dosimetría."
+            : "Shelter in shielded module and repeat dosimetry.",
+          locale === "es"
+            ? "Informar al oficial médico y registrar fatiga."
+            : "Inform crew medical officer and log fatigue.",
+        ],
+        locale === "es"
+          ? "Picos de radiación afectan inmunidad y requieren contramedidas inmediatas."
+          : "Radiation spikes affect immunity and need immediate countermeasures.",
+      )
+    );
+  }
+
+  if (guidance.length === 0) {
+    guidance.push(
+      buildGuidance(
+        new Set(["distance"]),
+        copy.guidance.default.actions,
+        copy.guidance.default.why
+      )
+    );
+  }
+
+  if (environment === "spacecraft" || environment === "mars_base") {
+    guidance.push(
+      buildGuidance(
+        new Set(["distance", "radiation"]),
+        locale === "es"
+          ? [
+              "Actuar de forma autónoma: el consultor en Tierra recibe datos con retraso (" +
+                envMeta.latencyLabel +
+                ").",
+              "Documentar síntomas neuro-ocular (SANS) y escalar localmente si la visión cambia.",
+            ]
+          : [
+              "Act autonomously: ground consult is delayed (" + envMeta.latencyLabel + ").",
+              "Log neuro-ocular SANS symptoms and escalate locally if vision shifts.",
+            ],
+        locale === "es"
+          ? "En tránsito profundo o en Marte la señal tarda minutos; las decisiones urgentes deben seguir reglas HRP a bordo."
+          : "Deep transit or Mars link delay is measured in minutes; urgent calls follow onboard HRP rules.",
+      )
+    );
+  }
+
+  if (environment === "rover" || environment === "lunar_base") {
+    guidance.push(
+      buildGuidance(
+        new Set(["gravity", "closed_environment"]),
+        locale === "es"
+          ? [
+              "Chequeo post-EVA: hidratación, irritación por polvo lunar y estrés térmico del traje.",
+              "Registrar presión arterial y FC 30 min tras reingreso al hábitat.",
+            ]
+          : [
+              "Post-EVA check: hydration, lunar dust irritation, and suit thermal stress.",
+              "Re-check blood pressure and heart rate 30 min after re-entry.",
+            ],
+        locale === "es"
+          ? "En superficie, el polvo y la gravedad parcial amplifican deshidratación y fatiga tras cada salida."
+          : "On the surface, dust and partial gravity amplify dehydration and fatigue after each EVA.",
+      )
+    );
+  }
+
+  if (environment === "station") {
+    guidance.push(
+      buildGuidance(
+        new Set(["closed_environment", "gravity"]),
+        locale === "es"
+          ? [
+              "Monitorizar CO₂ de cabina y síntomas de hipoxia leve (cefalea, somnolencia).",
+              "Anotar cambios de visión asociados a SANS y fluidos en microgravedad.",
+            ]
+          : [
+              "Track cabin CO₂ and mild hypoxia signs (headache, drowsiness).",
+              "Log vision shifts linked to SANS and fluid redistribution in microgravity.",
+            ],
+        locale === "es"
+          ? "La estación combina ambiente cerrado y microgravedad: CO₂ y SANS son riesgos HRP frecuentes."
+          : "The station mixes closed ecology and microgravity; CO₂ and SANS are common HRP risks.",
+      )
+    );
+  }
+
+  const headline =
+    escalationLevel === "ground_flight_surgeon"
+      ? copy.headlines.ground
+      : escalationLevel === "crew_attention"
+        ? copy.headlines.crew
+        : copy.headlines.ok;
+
+  return {
+    overallStatus,
+    escalationLevel,
+    systemStatuses,
+    guidance,
+    headline,
+  };
+}
+
+function worstEscalation(a: EscalationLevel, b: EscalationLevel): EscalationLevel {
+  const rank: Record<EscalationLevel, number> = {
+    self_care: 0,
+    crew_attention: 1,
+    ground_flight_surgeon: 2,
+  };
+  return rank[a] >= rank[b] ? a : b;
+}
+
+================
 File: src/features/vitals-form/MissionRoutinePanel.tsx
 ================
 "use client";
@@ -1724,7 +3067,7 @@ interface MissionRoutinePanelProps {
 }
 
 export function MissionRoutinePanel({
-  locale = "es",
+  locale = "en",
   onReactionRecorded,
 }: MissionRoutinePanelProps) {
   const ui = UI_STRINGS[locale];
@@ -1922,919 +3265,6 @@ export function MissionRoutinePanel({
           <p className="text-sm" role="status" aria-live="polite">
             {ui.reactionResult}: <strong>{reactionAvg}</strong>
           </p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-================
-File: shared/types.ts
-================
-/**
- * Workspace re-export — keep feature code importing from here or @/types/health in sync.
- */
-export type {
-  SpaceflightHazard,
-  MissionEnvironment,
-  HealthStatus,
-  EscalationLevel,
-  BodySystemStatus,
-  OfficialReferenceLink,
-  MissionProfile,
-  VitalReadings,
-  SystemStatusEntry,
-  ActionableGuidance,
-  HealthEvaluation,
-  HazardKnowledgeBlock,
-  VitalsFormMetric,
-  ExamThreshold,
-  EnvironmentMissionMeta,
-  MissionScenarioId,
-  AstronautHealthArchetype,
-  MockAstronautProfile,
-} from "../src/types/health";
-
-================
-File: src/app/api/health-log/route.ts
-================
-import { NextResponse } from "next/server";
-import { buildMockMissionHistory } from "@/data/mockMissionHistory";
-import type { MissionEnvironment, VitalReadings } from "@/types/health";
-
-/** In-memory stub for ground-sync demos — resets on deploy (Render ephemeral FS). */
-const memoryLogs: VitalReadings[] = [];
-
-function parseEnvironment(value: string | null): MissionEnvironment {
-  if (
-    value === "station" ||
-    value === "spacecraft" ||
-    value === "rover" ||
-    value === "lunar_base" ||
-    value === "mars_base"
-  ) {
-    return value;
-  }
-  return "station";
-}
-
-function simulateLatencyMs(environment: MissionEnvironment): number {
-  const map: Record<MissionEnvironment, number> = {
-    station: 500,
-    spacecraft: 12 * 60 * 1000,
-    rover: 2600,
-    lunar_base: 2600,
-    mars_base: 18 * 60 * 1000,
-  };
-  return map[environment];
-}
-
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const environment = parseEnvironment(searchParams.get("environment"));
-  const days = Math.min(
-    30,
-    Math.max(1, parseInt(searchParams.get("days") ?? "14", 10) || 14)
-  );
-
-  if (searchParams.get("environment") || searchParams.get("days")) {
-    const synthetic = buildMockMissionHistory(environment).slice(0, days);
-    return NextResponse.json({
-      ok: true,
-      mode: "synthetic_telemetry",
-      environment,
-      days,
-      logs: synthetic,
-      signalLatencyMs: simulateLatencyMs(environment),
-      note: "Synthetic telemetry for demos; client evaluation remains offline-first.",
-    });
-  }
-
-  return NextResponse.json({
-    ok: true,
-    count: memoryLogs.length,
-    logs: memoryLogs,
-    note: "Client-side evaluation works fully offline; this endpoint is optional.",
-  });
-}
-
-interface PostPayload extends VitalReadings {
-  syncAck?: boolean;
-}
-
-export async function POST(request: Request) {
-  try {
-    const body = (await request.json()) as PostPayload;
-    if (typeof body.missionDay !== "number" || !body.recordedAt) {
-      return NextResponse.json(
-        { ok: false, error: "Invalid vitals payload" },
-        { status: 400 }
-      );
-    }
-
-    const { syncAck, ...vitals } = body;
-    memoryLogs.push(vitals);
-
-    const latencyMs = simulateLatencyMs(vitals.environment ?? "station");
-    await new Promise((resolve) => setTimeout(resolve, Math.min(latencyMs, 1500)));
-
-    return NextResponse.json({
-      ok: true,
-      received: vitals.missionDay,
-      groundSyncAck: syncAck === true,
-      simulatedSignalLatencyMs: latencyMs,
-      message:
-        "Ground control acknowledged receipt (simulated). Clinical rules already ran on-device.",
-    });
-  } catch {
-    return NextResponse.json({ ok: false, error: "Bad JSON" }, { status: 400 });
-  }
-}
-
-================
-File: src/app/layout.tsx
-================
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-export const metadata: Metadata = {
-  title: "Mission Health Control | NASA Space Apps",
-  description:
-    "Offline-first astronaut health monitoring for space missions.",
-};
-
-export default function RootLayout({ children }: LayoutProps<"/">) {
-  return (
-    <html
-      lang="en"
-      data-theme="mission"
-      className={`${geistSans.variable} ${geistMono.variable} h-full`}
-    >
-      <body className="flex min-h-full flex-col">{children}</body>
-    </html>
-  );
-}
-
-================
-File: src/data/mockMissionHistory.ts
-================
-import type { MissionEnvironment, VitalReadings } from "@/types/health";
-
-const baseDate = new Date("2026-11-01T08:00:00Z");
-
-function entry(
-  day: number,
-  partial: Partial<VitalReadings> & Pick<VitalReadings, "environment">
-): VitalReadings {
-  const d = new Date(baseDate);
-  d.setUTCDate(d.getUTCDate() + day - 1);
-  return {
-    missionDay: day,
-    recordedAt: d.toISOString(),
-    systolicBP: 118,
-    diastolicBP: 76,
-    heartRate: 72,
-    bloodSugar: 98,
-    temperature: 36.7,
-    sleepHours: 7.2,
-    moodScore: 4,
-    stressLevel: 3,
-    radiationMsv: 0.4 + day * 0.02,
-    ...partial,
-    environment: partial.environment,
-  };
-}
-
-/** 14 mission days — subtle upward BP / downward sleep trend after day 9 */
-export function buildMockMissionHistory(
-  environment: MissionEnvironment = "station"
-): VitalReadings[] {
-  const env = environment;
-  const days: VitalReadings[] = [];
-
-  for (let day = 1; day <= 14; day++) {
-    let systolic = 112 + Math.sin(day / 3) * 4;
-    let diastolic = 74;
-    let heartRate = 68 + (day % 3);
-    let sleep = 7.4 - (day > 10 ? 0.15 * (day - 10) : 0);
-    let mood = day > 11 ? 3 : 4;
-    let glucose = 95 + (day > 8 ? (day - 8) * 2 : 0);
-    let stress = day > 12 ? 5 : 3;
-
-    if (day === 12) {
-      systolic = 138;
-      diastolic = 92;
-      heartRate = 98;
-    }
-    if (day === 13) {
-      sleep = 4.5;
-      mood = 2;
-      stress = 6;
-    }
-    if (day === 14) {
-      systolic = 142;
-      glucose = 165;
-    }
-
-    const envDoseBoost =
-      env === "mars_base" ? 0.12 : env === "spacecraft" ? 0.08 : env === "rover" ? 0.05 : 0;
-    const radiationMsv = day >= 14 ? 0.85 + envDoseBoost : 0.35 + day * 0.03 + envDoseBoost;
-
-    days.push(
-      entry(day, {
-        environment: env,
-        systolicBP: Math.round(systolic),
-        diastolicBP: Math.round(diastolic),
-        heartRate: Math.round(heartRate),
-        bloodSugar: Math.round(glucose),
-        temperature: 36.5 + (day === 13 ? 0.4 : 0.2),
-        sleepHours: Math.round(sleep * 10) / 10,
-        moodScore: mood,
-        stressLevel: stress,
-        radiationMsv,
-      })
-    );
-  }
-
-  return days;
-}
-
-export const MOCK_MISSION_HISTORY = buildMockMissionHistory("station");
-
-function scenarioBase(environment: MissionEnvironment): VitalReadings {
-  const last = buildMockMissionHistory(environment).slice(-1)[0];
-  return {
-    ...last,
-    missionDay: (last?.missionDay ?? 14) + 1,
-    recordedAt: new Date().toISOString(),
-    environment,
-  };
-}
-
-/** Solar Particle Event — high radiation, fatigue, elevated HR */
-export function solarParticleScenario(
-  environment: MissionEnvironment = "station"
-): VitalReadings {
-  const base = scenarioBase(environment);
-  return {
-    ...base,
-    radiationMsv: 1.75,
-    heartRate: 108,
-    sleepHours: 5.2,
-    moodScore: 3,
-    stressLevel: 7,
-    extraMetrics: { fatigueLevel: "elevated" },
-  };
-}
-
-/** Cardio / microgravity dehydration — ground flight surgeon */
-export function cardioDehydrationScenario(
-  environment: MissionEnvironment = "station"
-): VitalReadings {
-  const base = scenarioBase(environment);
-  return {
-    ...base,
-    systolicBP: 166,
-    diastolicBP: 102,
-    heartRate: 124,
-    temperature: 38.3,
-    bloodSugar: 118,
-    stressLevel: 6,
-    radiationMsv: 0.6,
-  };
-}
-
-/** Isolation & circadian drift — crew attention */
-export function isolationDriftScenario(
-  environment: MissionEnvironment = "station"
-): VitalReadings {
-  const base = scenarioBase(environment);
-  return {
-    ...base,
-    sleepHours: 3.8,
-    moodScore: 2,
-    stressLevel: 8,
-    heartRate: 86,
-    extraMetrics: { reactionTimeMs: 540 },
-  };
-}
-
-/** @deprecated Use scenario helpers instead */
-export const CRITICAL_SCENARIO_READING: VitalReadings = cardioDehydrationScenario("station");
-
-================
-File: src/features/rules-engine/evaluateHealth.ts
-================
-import { EXAM_THRESHOLDS, NASA_HAZARDS_KNOWLEDGE } from "@/data/nasaKnowledge";
-import { EVALUATOR_COPY, type AppLocale } from "@/lib/locale";
-import type {
-  ActionableGuidance,
-  BodySystemStatus,
-  EscalationLevel,
-  HealthEvaluation,
-  HealthStatus,
-  SpaceflightHazard,
-  SystemStatusEntry,
-  VitalReadings,
-} from "@/types/health";
-
-function scoreMetric(
-  value: number,
-  normal: { min?: number; max?: number },
-  warning: { min?: number; max?: number }
-): HealthStatus {
-  const inRange = (range: { min?: number; max?: number }, v: number) => {
-    if (range.min !== undefined && v < range.min) return false;
-    if (range.max !== undefined && v > range.max) return false;
-    return true;
-  };
-  if (inRange(normal, value)) return "normal";
-  if (inRange(warning, value)) return "warning";
-  return "critical";
-}
-
-function trendDelta(recent: VitalReadings[], pick: (v: VitalReadings) => number): number {
-  if (recent.length < 2) return 0;
-  const sorted = [...recent].sort((a, b) => a.missionDay - b.missionDay);
-  const last = sorted[sorted.length - 1];
-  const prev = sorted[sorted.length - 2];
-  return pick(last) - pick(prev);
-}
-
-function worst(a: HealthStatus, b: HealthStatus): HealthStatus {
-  const rank: Record<HealthStatus, number> = {
-    normal: 0,
-    warning: 1,
-    critical: 2,
-  };
-  return rank[a] >= rank[b] ? a : b;
-}
-
-function systemForMetric(metric: string): BodySystemStatus {
-  const map: Record<string, BodySystemStatus> = {
-    systolicBP: "cardiovascular",
-    diastolicBP: "cardiovascular",
-    heartRate: "cardiovascular",
-    bloodSugar: "metabolic",
-    temperature: "metabolic",
-    sleepHours: "neuro_behavioral",
-    moodScore: "neuro_behavioral",
-    stressLevel: "neuro_behavioral",
-    radiationMsv: "immune_musculoskeletal",
-  };
-  return map[metric] ?? "immune_musculoskeletal";
-}
-
-function buildGuidance(
-  hazards: Set<SpaceflightHazard>,
-  actions: string[],
-  why: string
-): ActionableGuidance {
-  const hazardImpact = NASA_HAZARDS_KNOWLEDGE.filter((h) =>
-    hazards.has(h.hazard)
-  ).map((h) => h.hazard);
-  return {
-    whyNeededInSpace: why,
-    hazardImpact,
-    recommendedActions: actions,
-  };
-}
-
-function reactionTimeMs(current: VitalReadings): number | undefined {
-  const raw = current.extraMetrics?.reactionTimeMs;
-  if (typeof raw === "number") return raw;
-  if (typeof raw === "string") {
-    const n = Number(raw);
-    return Number.isFinite(n) ? n : undefined;
-  }
-  return undefined;
-}
-
-/**
- * Pure offline evaluator — Dev 2 extends thresholds and escalation rules here.
- */
-export function evaluateHealth(
-  current: VitalReadings,
-  recentHistory: VitalReadings[] = [],
-  locale: AppLocale = "es"
-): HealthEvaluation {
-  const copy = EVALUATOR_COPY[locale];
-  const history = [...recentHistory, current].sort(
-    (a, b) => a.missionDay - b.missionDay
-  );
-
-  const metricStatuses: Record<string, HealthStatus> = {};
-  for (const th of EXAM_THRESHOLDS) {
-    if (th.metric === "radiationMsv" || th.metric === "stressLevel") continue;
-    const value = current[th.metric] as number;
-    metricStatuses[th.metric] = scoreMetric(value, th.normal, th.warning);
-  }
-
-  if (current.radiationMsv !== undefined) {
-    const dose = current.radiationMsv;
-    let st: HealthStatus = "normal";
-    if (dose > 1.5) st = "critical";
-    else if (dose > 1.0) st = "warning";
-    metricStatuses.radiationMsv = st;
-    metricStatuses.radiation = st;
-  }
-
-  if (current.stressLevel !== undefined) {
-    const stress = current.stressLevel;
-    let st: HealthStatus = "normal";
-    if (stress >= 8) st = "critical";
-    else if (stress >= 6) st = "warning";
-    metricStatuses.stressLevel = st;
-  }
-
-  const reactionMs = reactionTimeMs(current);
-  if (reactionMs !== undefined) {
-    let st: HealthStatus = "normal";
-    if (reactionMs > 650) st = "critical";
-    else if (reactionMs > 450) st = "warning";
-    metricStatuses.reactionTimeMs = st;
-  }
-
-  const bpTrend = trendDelta(history, (v) => v.systolicBP);
-  const sleepTrend = trendDelta(history, (v) => v.sleepHours);
-  if (bpTrend >= 8) {
-    metricStatuses.systolicBP = worst(metricStatuses.systolicBP, "warning");
-  }
-  if (sleepTrend <= -1.5) {
-    metricStatuses.sleepHours = worst(metricStatuses.sleepHours, "warning");
-  }
-
-  const bySystem = new Map<BodySystemStatus, HealthStatus>();
-  for (const th of EXAM_THRESHOLDS) {
-    if (th.metric === "radiationMsv" || th.metric === "stressLevel") continue;
-    const sys = systemForMetric(th.metric);
-    const st = metricStatuses[th.metric];
-    bySystem.set(sys, worst(bySystem.get(sys) ?? "normal", st));
-  }
-  if (metricStatuses.radiation === "warning" || metricStatuses.radiation === "critical") {
-    bySystem.set(
-      "immune_musculoskeletal",
-      worst(bySystem.get("immune_musculoskeletal") ?? "normal", metricStatuses.radiation)
-    );
-  }
-  if (metricStatuses.stressLevel) {
-    bySystem.set(
-      "neuro_behavioral",
-      worst(bySystem.get("neuro_behavioral") ?? "normal", metricStatuses.stressLevel)
-    );
-  }
-  if (metricStatuses.reactionTimeMs) {
-    bySystem.set(
-      "neuro_behavioral",
-      worst(bySystem.get("neuro_behavioral") ?? "normal", metricStatuses.reactionTimeMs)
-    );
-  }
-
-  const systemStatuses: SystemStatusEntry[] = (
-    [
-      "cardiovascular",
-      "neuro_behavioral",
-      "metabolic",
-      "immune_musculoskeletal",
-    ] as const
-  ).map((system) => ({
-    system,
-    status: bySystem.get(system) ?? "normal",
-    summary:
-      (bySystem.get(system) ?? "normal") === "normal"
-        ? copy.systemNormal
-        : copy.systemWarning,
-  }));
-
-  let overallStatus: HealthStatus = "normal";
-  for (const st of Object.values(metricStatuses)) {
-    overallStatus = worst(overallStatus, st);
-  }
-  for (const s of systemStatuses) {
-    overallStatus = worst(overallStatus, s.status);
-  }
-
-  let escalationLevel: EscalationLevel = "self_care";
-  if (overallStatus === "warning") escalationLevel = "crew_attention";
-  if (overallStatus === "critical") escalationLevel = "ground_flight_surgeon";
-  if (
-    current.systolicBP >= 160 ||
-    current.heartRate >= 120 ||
-    current.temperature >= 38.2
-  ) {
-    escalationLevel = "ground_flight_surgeon";
-    overallStatus = "critical";
-  }
-  if (
-    (current.stressLevel !== undefined && current.stressLevel >= 8) ||
-    (metricStatuses.reactionTimeMs === "warning" ||
-      metricStatuses.reactionTimeMs === "critical")
-  ) {
-    escalationLevel = worstEscalation(escalationLevel, "crew_attention");
-    if (
-      current.stressLevel !== undefined &&
-      current.stressLevel >= 8 &&
-      (metricStatuses.sleepHours === "critical" ||
-        metricStatuses.moodScore === "critical")
-    ) {
-      escalationLevel = worstEscalation(escalationLevel, "crew_attention");
-    }
-  }
-
-  const guidance: ActionableGuidance[] = [];
-
-  if (
-    metricStatuses.systolicBP !== "normal" ||
-    metricStatuses.heartRate !== "normal"
-  ) {
-    guidance.push(
-      buildGuidance(
-        new Set(["gravity", "distance"]),
-        copy.guidance.cardio.actions,
-        copy.guidance.cardio.why
-      )
-    );
-  }
-
-  if (
-    metricStatuses.sleepHours !== "normal" ||
-    metricStatuses.moodScore !== "normal" ||
-    (metricStatuses.stressLevel && metricStatuses.stressLevel !== "normal") ||
-    (metricStatuses.reactionTimeMs && metricStatuses.reactionTimeMs !== "normal")
-  ) {
-    guidance.push(
-      buildGuidance(
-        new Set(["isolation", "closed_environment"]),
-        copy.guidance.neuro.actions,
-        copy.guidance.neuro.why
-      )
-    );
-  }
-
-  if (metricStatuses.bloodSugar !== "normal" || metricStatuses.temperature !== "normal") {
-    guidance.push(
-      buildGuidance(
-        new Set(["closed_environment", "distance"]),
-        copy.guidance.metabolic.actions,
-        copy.guidance.metabolic.why
-      )
-    );
-  }
-
-  if (metricStatuses.radiation === "warning" || metricStatuses.radiation === "critical") {
-    guidance.push(
-      buildGuidance(
-        new Set(["radiation"]),
-        [
-          locale === "es"
-            ? "Refugio en módulo blindado y repetir dosimetría."
-            : "Shelter in shielded module and repeat dosimetry.",
-          locale === "es"
-            ? "Informar al oficial médico y registrar fatiga."
-            : "Inform crew medical officer and log fatigue.",
-        ],
-        locale === "es"
-          ? "Picos de radiación afectan inmunidad y requieren contramedidas inmediatas."
-          : "Radiation spikes affect immunity and need immediate countermeasures.",
-      )
-    );
-  }
-
-  if (guidance.length === 0) {
-    guidance.push(
-      buildGuidance(
-        new Set(["distance"]),
-        copy.guidance.default.actions,
-        copy.guidance.default.why
-      )
-    );
-  }
-
-  const headline =
-    escalationLevel === "ground_flight_surgeon"
-      ? copy.headlines.ground
-      : escalationLevel === "crew_attention"
-        ? copy.headlines.crew
-        : copy.headlines.ok;
-
-  return {
-    overallStatus,
-    escalationLevel,
-    systemStatuses,
-    guidance,
-    headline,
-  };
-}
-
-function worstEscalation(a: EscalationLevel, b: EscalationLevel): EscalationLevel {
-  const rank: Record<EscalationLevel, number> = {
-    self_care: 0,
-    crew_attention: 1,
-    ground_flight_surgeon: 2,
-  };
-  return rank[a] >= rank[b] ? a : b;
-}
-
-================
-File: src/features/vitals-form/VitalsInputForm.tsx
-================
-"use client";
-
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Camera, Flame } from "lucide-react";
-import {
-  MEASUREMENT_GUIDE_LOCALE,
-  type AppLocale,
-  UI_STRINGS,
-} from "@/lib/locale";
-import { statusStyles } from "@/lib/statusColors";
-import type { MissionEnvironment, VitalReadings, VitalsFormMetric } from "@/types/health";
-
-const STORAGE_KEY = "healthnasa_checkin_streak";
-const REACTION_KEY = "healthnasa_reaction_avg_ms";
-
-const STEP_METRICS: VitalsFormMetric[] = [
-  "systolicBP",
-  "diastolicBP",
-  "heartRate",
-  "bloodSugar",
-  "temperature",
-  "sleepHours",
-  "moodScore",
-  "radiationMsv",
-  "stressLevel",
-];
-
-interface VitalsInputFormProps {
-  environment: MissionEnvironment;
-  missionDay: number;
-  locale?: AppLocale;
-  onSubmit: (reading: VitalReadings) => void;
-  pendingReactionMs?: number;
-}
-
-export function VitalsInputForm({
-  environment,
-  missionDay,
-  locale = "es",
-  onSubmit,
-  pendingReactionMs,
-}: VitalsInputFormProps) {
-  const ui = UI_STRINGS[locale];
-
-  const [step, setStep] = useState(0);
-  const [streak, setStreak] = useState(0);
-
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) setStreak(parseInt(raw, 10) || 0);
-    } catch {
-      /* offline / private mode */
-    }
-  }, []);
-  const [preview, setPreview] = useState<string | undefined>();
-  const [form, setForm] = useState<Partial<VitalReadings>>({
-    environment,
-    missionDay,
-    moodScore: 4,
-    stressLevel: 4,
-    radiationMsv: 0.5,
-  });
-
-  const currentMetric = STEP_METRICS[step];
-  const isMoodStep = currentMetric === "moodScore";
-  const vitalsKey = currentMetric as keyof typeof ui.vitals;
-  const currentLabel = ui.vitals[vitalsKey] ?? currentMetric;
-
-  const guide = useMemo(() => {
-    if (!currentMetric) return null;
-    return MEASUREMENT_GUIDE_LOCALE[locale][currentMetric];
-  }, [currentMetric, locale]);
-
-  const updateField = useCallback((key: string, value: number) => {
-    setForm((f) => ({ ...f, [key]: value }));
-  }, []);
-
-  function onImageChange(file: File | null) {
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const url = typeof reader.result === "string" ? reader.result : undefined;
-      setPreview(url);
-      setForm((f) => ({ ...f, imageNoteOrDataUrl: url }));
-    };
-    reader.readAsDataURL(file);
-  }
-
-  function bumpStreak() {
-    const next = streak + 1;
-    setStreak(next);
-    try {
-      localStorage.setItem(STORAGE_KEY, String(next));
-    } catch {
-      /* ignore */
-    }
-  }
-
-  function submitAll() {
-    let reactionMs = pendingReactionMs;
-    if (reactionMs === undefined) {
-      try {
-        const raw = localStorage.getItem(REACTION_KEY);
-        if (raw) reactionMs = parseInt(raw, 10);
-      } catch {
-        /* ignore */
-      }
-    }
-
-    const extraMetrics: Record<string, number | string> = {
-      ...(form.extraMetrics ?? {}),
-    };
-    if (reactionMs !== undefined && Number.isFinite(reactionMs)) {
-      extraMetrics.reactionTimeMs = reactionMs;
-    }
-
-    const reading: VitalReadings = {
-      missionDay,
-      recordedAt: new Date().toISOString(),
-      environment,
-      systolicBP: Number(form.systolicBP ?? 120),
-      diastolicBP: Number(form.diastolicBP ?? 80),
-      heartRate: Number(form.heartRate ?? 72),
-      bloodSugar: Number(form.bloodSugar ?? 100),
-      temperature: Number(form.temperature ?? 36.7),
-      sleepHours: Number(form.sleepHours ?? 7),
-      moodScore: Number(form.moodScore ?? 4),
-      radiationMsv: form.radiationMsv !== undefined ? Number(form.radiationMsv) : undefined,
-      stressLevel: form.stressLevel !== undefined ? Number(form.stressLevel) : undefined,
-      imageNoteOrDataUrl: form.imageNoteOrDataUrl,
-      extraMetrics: Object.keys(extraMetrics).length ? extraMetrics : undefined,
-    };
-    bumpStreak();
-    onSubmit(reading);
-  }
-
-  const moodValue = form.moodScore ?? 4;
-  const streakStyles = statusStyles(streak >= 7 ? "normal" : "warning");
-  const streakText = `${streak} ${ui.streak}`;
-
-  const stressValue = form.stressLevel ?? 4;
-  const fieldId = `vital-${currentMetric}`;
-  const stressOutputId = "stress-level-output";
-  const progressPct = Math.round(((step + 1) / STEP_METRICS.length) * 100);
-
-  return (
-    <div className="mission-panel p-4">
-      <div className="mb-4 flex items-center justify-between gap-2">
-        <h3 className="text-lg font-semibold">{ui.dailyCheckIn}</h3>
-        <div
-          className={`badge gap-2 ${streakStyles.bg} ${streakStyles.text}`}
-          aria-label={streakText}
-        >
-          <Flame className="h-4 w-4" aria-hidden />
-          {streakText}
-        </div>
-      </div>
-
-      <label htmlFor={fieldId} className="mb-2 block text-sm text-base-content/80">
-        {ui.stepOf} {step + 1} {ui.of} {STEP_METRICS.length}: {currentLabel}
-      </label>
-      <progress
-        className="progress progress-primary mb-4 w-full"
-        value={progressPct}
-        max={100}
-        aria-label={`${ui.stepOf} ${step + 1} ${ui.of} ${STEP_METRICS.length}`}
-      />
-
-      {guide && (
-        <div className="mb-4 rounded-box border border-base-300 bg-base-100/80 p-3 text-sm text-base-content/85">
-          <p className="font-medium text-base-content">{ui.howToMeasure}</p>
-          <p className="mt-1">{guide.howTo}</p>
-          <p className="mt-2 font-medium text-base-content">{ui.whyInSpace}</p>
-          <p className="mt-1">{guide.whySpace}</p>
-        </div>
-      )}
-
-      <fieldset className="min-w-0">
-        <legend className="sr-only">{currentLabel}</legend>
-
-        {isMoodStep ? (
-          <div role="radiogroup" aria-labelledby={fieldId} className="flex flex-wrap gap-2">
-            {[1, 2, 3, 4, 5].map((n) => (
-              <button
-                key={n}
-                type="button"
-                role="radio"
-                aria-checked={moodValue === n}
-                onClick={() => updateField("moodScore", n)}
-                className={`btn btn-sm ${
-                  moodValue === n ? "btn-success" : "btn-outline"
-                }`}
-              >
-                {n} — {ui.mood[n - 1]}
-              </button>
-            ))}
-          </div>
-        ) : currentMetric === "stressLevel" ? (
-          <div className="space-y-2">
-            <input
-              id={fieldId}
-              type="range"
-              min={1}
-              max={10}
-              step={1}
-              value={stressValue}
-              aria-valuemin={1}
-              aria-valuemax={10}
-              aria-valuenow={stressValue}
-              aria-describedby={stressOutputId}
-              onChange={(e) => updateField("stressLevel", Number(e.target.value))}
-              className="range range-primary w-full"
-            />
-            <p
-              id={stressOutputId}
-              className="text-center text-lg font-semibold"
-              aria-live="polite"
-            >
-              <span className="sr-only">{ui.stressValueLabel}: </span>
-              {stressValue} / 10
-            </p>
-          </div>
-        ) : (
-          <input
-            id={fieldId}
-            type="number"
-            inputMode="decimal"
-            aria-required="true"
-            step={
-              currentMetric === "temperature" ||
-              currentMetric === "sleepHours" ||
-              currentMetric === "radiationMsv"
-                ? 0.1
-                : 1
-            }
-            className="input input-bordered w-full"
-            value={
-              currentMetric === "radiationMsv"
-                ? (form.radiationMsv ?? "")
-                : ((form[currentMetric as keyof VitalReadings] as number) ?? "")
-            }
-            onChange={(e) => updateField(currentMetric, Number(e.target.value))}
-          />
-        )}
-      </fieldset>
-
-      <div className="mt-4 flex flex-wrap items-center gap-3">
-        <label htmlFor="vital-image-upload" className="btn btn-sm btn-outline gap-2">
-          <Camera className="h-4 w-4" aria-hidden />
-          {ui.vitalsFileLabel}
-          <input
-            id="vital-image-upload"
-            type="file"
-            accept="image/*"
-            className="sr-only"
-            onChange={(e) => onImageChange(e.target.files?.[0] ?? null)}
-          />
-        </label>
-        {preview && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={preview}
-            alt={ui.uploadPreview}
-            className="h-12 w-12 rounded object-cover"
-          />
-        )}
-      </div>
-
-      <div className="mt-6 flex justify-between gap-2">
-        <button
-          type="button"
-          disabled={step === 0}
-          onClick={() => setStep((s) => Math.max(0, s - 1))}
-          className="btn btn-outline"
-        >
-          {ui.back}
-        </button>
-        {step < STEP_METRICS.length - 1 ? (
-          <button type="button" onClick={() => setStep((s) => s + 1)} className="btn btn-primary">
-            {ui.next}
-          </button>
-        ) : (
-          <button type="button" onClick={submitAll} className="btn btn-success">
-            {ui.saveLog}
-          </button>
         )}
       </div>
     </div>
@@ -3376,6 +3806,31 @@ export const EVALUATOR_COPY: Record<
   },
 };
 
+export const MISSION_EVENT_LABELS: Record<AppLocale, Record<string, string>> = {
+  es: {
+    routine_vitals: "Sincronización de vitales",
+    habitat_air_check: "Control de aire de cabina",
+    resistive_exercise_block: "Bloque de ejercicio resistivo",
+    hydration_protocol: "Protocolo de hidratación",
+    solar_particle_watch: "Vigilancia de partículas solares",
+    circadian_light_therapy: "Terapia lumínica circadiana",
+    ground_sync_window: "Ventana de enlace con Tierra",
+    eva_suit_prep: "Preparación de traje EVA",
+    autonomous_med_briefing: "Briefing médico autónomo",
+  },
+  en: {
+    routine_vitals: "Vitals sync",
+    habitat_air_check: "Habitat air check",
+    resistive_exercise_block: "Resistive exercise block",
+    hydration_protocol: "Hydration protocol",
+    solar_particle_watch: "Solar particle watch",
+    circadian_light_therapy: "Circadian light therapy",
+    ground_sync_window: "Ground sync window",
+    eva_suit_prep: "EVA suit prep",
+    autonomous_med_briefing: "Autonomous medical briefing",
+  },
+};
+
 export const UI_STRINGS = {
   es: {
     metaTitle: "Control de salud de misión | NASA Space Apps",
@@ -3458,6 +3913,29 @@ export const UI_STRINGS = {
     back: "Atrás",
     next: "Siguiente",
     saveLog: "Guardar registro de hoy",
+    quickFillNormal: "Relleno rápido (valores normales)",
+    referenceRange: "Rango de referencia",
+    lastVisualInspection: "Última inspección visual / adjunto",
+    noVisualAttachment: "Sin imagen adjunta aún.",
+    groundSyncSimulated:
+      "Sincronización con Tierra simulada (latencia: {latency})",
+    chartPointHint:
+      "Toca un punto de la curva (día y hora UTC) para revisar ese instante en modo solo lectura.",
+    chartTimeScale: "Escala de tiempo",
+    chartScaleMinutes: "Minutos",
+    chartScaleHours: "Horas",
+    chartScaleDays: "Días",
+    chartScaleHintMinutes: "Muestras cada ~24 min (UTC)",
+    chartScaleHintHours: "Muestras cada hora (UTC)",
+    chartScaleHintDays: "Un punto por día de misión",
+    bodyReplayAtTop: "Estado corporal en el instante seleccionado",
+    dayReplayTitle: "Instante de misión (revisión)",
+    dayEventsLabel: "Eventos del día",
+    measuredAtEnvironment: "Entorno de la medición",
+    intradayChartHint: "Variación intradía (muestras cada ~60 min, hora UTC)",
+    replayModeBanner:
+      "Modo revisión histórica — las simulaciones están bloqueadas hasta volver al presente.",
+    returnToNow: "Volver al presente",
     vitals: {
       systolicBP: "PA sistólica",
       diastolicBP: "PA diastólica",
@@ -3546,6 +4024,28 @@ export const UI_STRINGS = {
     back: "Back",
     next: "Next",
     saveLog: "Save today's log",
+    quickFillNormal: "Quick fill normal",
+    referenceRange: "Reference range",
+    lastVisualInspection: "Last visual inspection / ground attachment",
+    noVisualAttachment: "No image attached yet.",
+    groundSyncSimulated: "Ground sync simulated (latency: {latency})",
+    chartPointHint:
+      "Tap any point on the curves (UTC day and time) to inspect that timestamp in read-only mode.",
+    chartTimeScale: "Time scale",
+    chartScaleMinutes: "Minutes",
+    chartScaleHours: "Hours",
+    chartScaleDays: "Days",
+    chartScaleHintMinutes: "~24 min samples (UTC)",
+    chartScaleHintHours: "Hourly samples (UTC)",
+    chartScaleHintDays: "One point per mission day",
+    bodyReplayAtTop: "Body status at selected moment",
+    dayReplayTitle: "Mission snapshot (review)",
+    dayEventsLabel: "Day events",
+    measuredAtEnvironment: "Measurement environment",
+    intradayChartHint: "Intraday trend (~60 min samples, UTC time axis)",
+    replayModeBanner:
+      "Historical review mode — simulations stay locked until you return to now.",
+    returnToNow: "Return to now",
     stepOf: "Step",
     of: "of",
     howToMeasure: "How to measure",
@@ -3568,196 +4068,11 @@ export const UI_STRINGS = {
 } as const;
 
 ================
-File: src/types/health.ts
-================
-/** NASA Human Research Program–style spaceflight hazards */
-export type SpaceflightHazard =
-  | "radiation"
-  | "isolation"
-  | "distance"
-  | "gravity"
-  | "closed_environment";
-
-export type MissionEnvironment =
-  | "spacecraft"
-  | "station"
-  | "rover"
-  | "lunar_base"
-  | "mars_base";
-
-export type HealthStatus = "normal" | "warning" | "critical";
-
-export type EscalationLevel =
-  | "self_care"
-  | "crew_attention"
-  | "ground_flight_surgeon";
-
-export type BodySystemStatus =
-  | "cardiovascular"
-  | "neuro_behavioral"
-  | "metabolic"
-  | "immune_musculoskeletal";
-
-/** Demo mission scenario toggles in the dashboard simulation row */
-export type MissionScenarioId = "solar" | "cardio" | "isolation";
-
-export type AstronautHealthArchetype =
-  | "healthy"
-  | "cardio_warning"
-  | "radiation_exposure"
-  | "isolation_stress"
-  | "metabolic_drift"
-  | "multi_system_critical";
-
-export interface MockAstronautProfile {
-  id: string;
-  callSign: string;
-  fullName: string;
-  agency: string;
-  role: string;
-  archetype: AstronautHealthArchetype;
-  homeEnvironment: MissionEnvironment;
-  /** Optional demo scenarios that match this crew member's chart */
-  typicalScenarios: MissionScenarioId[];
-}
-
-export interface OfficialReferenceLink {
-  label: string;
-  url: string;
-}
-
-export interface MissionProfile {
-  missionName: string;
-  commanderRole: string;
-  medicalOfficerRole: string;
-  program: string;
-}
-
-export interface VitalReadings {
-  missionDay: number;
-  recordedAt: string;
-  environment: MissionEnvironment;
-  systolicBP: number;
-  diastolicBP: number;
-  heartRate: number;
-  bloodSugar: number;
-  temperature: number;
-  sleepHours: number;
-  moodScore: number;
-  radiationMsv?: number;
-  /** 1 = calm, 10 = extreme stress */
-  stressLevel?: number;
-  imageNoteOrDataUrl?: string;
-  extraMetrics?: Record<string, number | string>;
-}
-
-export interface SystemStatusEntry {
-  system: BodySystemStatus;
-  status: HealthStatus;
-  summary: string;
-}
-
-export interface ActionableGuidance {
-  whyNeededInSpace: string;
-  hazardImpact: SpaceflightHazard[];
-  recommendedActions: string[];
-}
-
-export interface HealthEvaluation {
-  overallStatus: HealthStatus;
-  escalationLevel: EscalationLevel;
-  systemStatuses: SystemStatusEntry[];
-  guidance: ActionableGuidance[];
-  headline: string;
-}
-
-export interface HazardKnowledgeBlock {
-  hazard: SpaceflightHazard;
-  title: string;
-  shortDescription: string;
-  whyMonitorInSpace: string;
-  whatCanBeMeasured: string[];
-  preventiveActions: string[];
-  relatedSystems: BodySystemStatus[];
-  hrpRisks?: string[];
-  officialLinks?: OfficialReferenceLink[];
-}
-
-export type VitalsFormMetric =
-  | keyof Pick<
-      VitalReadings,
-      | "systolicBP"
-      | "diastolicBP"
-      | "heartRate"
-      | "bloodSugar"
-      | "temperature"
-      | "sleepHours"
-      | "moodScore"
-    >
-  | "radiationMsv"
-  | "stressLevel";
-
-export interface ExamThreshold {
-  metric: VitalsFormMetric;
-  normal: { min?: number; max?: number };
-  warning: { min?: number; max?: number };
-  unit: string;
-  label: string;
-}
-
-export interface EnvironmentMissionMeta {
-  latencyLabel: string;
-  latencyMs: number;
-  primaryHazards: SpaceflightHazard[];
-  autonomyNote: string;
-  habitatName: string;
-  operationsContext: string;
-  healthFocus: string;
-  scenarioContext: string;
-}
-
-================
-File: package.json
-================
-{
-  "name": "healthnasa",
-  "version": "0.1.0",
-  "private": true,
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
-  },
-  "dependencies": {
-    "@emmorts/body-muscles": "^2.1.1",
-    "@faker-js/faker": "^10.6.0",
-    "lucide-react": "^1.73.0",
-    "next": "16.4.6",
-    "react": "19.3.0",
-    "react-dom": "19.3.0",
-    "recharts": "^3.10.1"
-  },
-  "devDependencies": {
-    "@tailwindcss/turbopack": "4.3.3",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "daisyui": "^5.8.0",
-    "eslint": "^9",
-    "eslint-config-next": "16.4.6",
-    "tailwindcss": "4.3.3",
-    "typescript": "^5"
-  }
-}
-
-================
 File: src/features/body-map/BodyMap.tsx
 ================
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { ExternalLink } from "lucide-react";
 import type { MuscleId } from "@emmorts/body-muscles";
 import { NASA_HAZARDS_KNOWLEDGE } from "@/data/nasaKnowledge";
 import {
@@ -3870,11 +4185,6 @@ export function BodyMap({ systemStatuses, locale = "es" }: BodyMapProps) {
                   aria-hidden
                 />
                 {regionLabel}
-                {isSelected ? (
-                  <span className="badge badge-xs border-0 bg-base-100/20 text-[10px] uppercase">
-                    {ui.bodyRegionSelected}
-                  </span>
-                ) : null}
               </button>
             );
           })}
@@ -3919,28 +4229,6 @@ export function BodyMap({ systemStatuses, locale = "es" }: BodyMapProps) {
                     {h.hrpRisks.join(" · ")}
                   </p>
                 )}
-                {h.officialLinks && h.officialLinks.length > 0 && (
-                  <div className="mt-2">
-                    <p className="text-xs font-medium text-base-content/70">
-                      {ui.officialReferences}
-                    </p>
-                    <ul className="mt-1 space-y-1">
-                      {h.officialLinks.map((link) => (
-                        <li key={link.url}>
-                          <a
-                            href={link.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="link link-primary inline-flex items-center gap-1"
-                          >
-                            <ExternalLink className="h-3 w-3" aria-hidden />
-                            {link.label}
-                          </a>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
               </li>
             );
           })}
@@ -3955,7 +4243,13 @@ File: src/features/dashboard/MissionDashboard.tsx
 ================
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { ASTRONAUT_ROSTER, archetypeLabel } from "@/data/astronautRoster";
 import {
   AlertTriangle,
@@ -3971,9 +4265,10 @@ import {
 import { buildMockMissionHistory, MOCK_MISSION_HISTORY } from "@/data/mockMissionHistory";
 import { BodyMap } from "@/features/body-map/BodyMap";
 import { evaluateHealth } from "@/features/rules-engine/evaluateHealth";
+import { DayReplayDetail } from "@/features/timeline/DayReplayDetail";
 import { HealthCharts } from "@/features/timeline/HealthCharts";
+import { formatMissionTimestamp } from "@/lib/missionTime";
 import { MissionRoutinePanel } from "@/features/vitals-form/MissionRoutinePanel";
-import { VitalsInputForm } from "@/features/vitals-form/VitalsInputForm";
 import {
   ENVIRONMENT_LABELS,
   ENVIRONMENT_MISSION_META,
@@ -4016,15 +4311,23 @@ const SCENARIO_LABEL: Record<
 };
 
 function loadLocale(): AppLocale {
-  if (typeof window === "undefined") return "es";
+  if (typeof window === "undefined") return "en";
   try {
     const raw = localStorage.getItem(LOCALE_STORAGE_KEY);
     if (raw === "en" || raw === "es") return raw;
   } catch {
     /* ignore */
   }
-  return "es";
+  return "en";
 }
+
+const ENVIRONMENT_IDS: MissionEnvironment[] = [
+  "station",
+  "spacecraft",
+  "rover",
+  "lunar_base",
+  "mars_base",
+];
 
 function loadLogs(): VitalReadings[] {
   if (typeof window === "undefined") return MOCK_MISSION_HISTORY;
@@ -4085,6 +4388,18 @@ function saveAstronautId(id: string) {
   }
 }
 
+function findLastVisualAttachment(
+  logs: VitalReadings[]
+): { url: string; missionDay: number } | null {
+  for (let i = logs.length - 1; i >= 0; i -= 1) {
+    const url = logs[i].imageNoteOrDataUrl;
+    if (url?.startsWith("data:image")) {
+      return { url, missionDay: logs[i].missionDay };
+    }
+  }
+  return null;
+}
+
 function applyScenarioOverlay(
   baseline: VitalReadings[],
   activeScenarios: MissionScenarioId[],
@@ -4101,11 +4416,15 @@ export function MissionDashboard() {
     useState<VitalReadings[]>(MOCK_MISSION_HISTORY);
   const [activeScenarios, setActiveScenarios] = useState<MissionScenarioId[]>([]);
   const [environment, setEnvironment] = useState<MissionEnvironment>("station");
-  const [locale, setLocale] = useState<AppLocale>("es");
+  const [locale, setLocale] = useState<AppLocale>("en");
   const [pendingReactionMs, setPendingReactionMs] = useState<number | undefined>();
   const [mockFeedLabel, setMockFeedLabel] = useState<string | null>(null);
   const [selectedAstronautId, setSelectedAstronautId] = useState<string>("eva-chen");
   const [roster, setRoster] = useState<MockAstronautProfile[]>(ASTRONAUT_ROSTER);
+  const [replayFocus, setReplayFocus] = useState<VitalReadings | null>(null);
+  const baselineLoadSeq = useRef(0);
+  const bodyTrackerAnchorRef = useRef<HTMLElement | null>(null);
+  const simControlsLocked = replayFocus !== null;
 
   useEffect(() => {
     // Post-mount hydration: SSR uses MOCK_MISSION_HISTORY; client restores saved logs.
@@ -4155,60 +4474,62 @@ export function MissionDashboard() {
 
   const ui = UI_STRINGS[locale];
   const profile = MISSION_PROFILE[locale];
-  const envMeta = ENVIRONMENT_MISSION_META[locale][environment];
 
   const latest =
     history[history.length - 1] ??
     MOCK_MISSION_HISTORY[MOCK_MISSION_HISTORY.length - 1];
+
+  const focusReading = replayFocus ?? latest;
+  const historyBeforeFocus = useMemo(() => {
+    if (!replayFocus) return history.slice(0, -1);
+    return history.filter((row) => row.missionDay < replayFocus.missionDay);
+  }, [history, replayFocus]);
+
   const evaluation = useMemo(
-    () => evaluateHealth(latest, history.slice(0, -1), locale),
-    [latest, history, locale]
+    () => evaluateHealth(focusReading, historyBeforeFocus, locale),
+    [focusReading, historyBeforeFocus, locale]
   );
+
+  const envMeta = ENVIRONMENT_MISSION_META[locale][focusReading.environment];
 
   const overallStyles = statusStyles(evaluation.overallStatus);
   const selectedAstronaut =
     roster.find((a) => a.id === selectedAstronautId) ?? roster[0];
 
-  const appendReading = useCallback((reading: VitalReadings) => {
-    setBaselineHistory((prev) => {
-      const next = [...prev.filter((p) => p.missionDay !== reading.missionDay), reading].sort(
-        (a, b) => a.missionDay - b.missionDay
-      );
-      saveLogs(next);
-      void fetch("/api/health-log", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...reading, syncAck: true }),
-      }).catch(() => {
-        /* optional ground sync */
-      });
-      return next;
-    });
-  }, []);
+  async function restoreBaselineFromFeed(
+    astronautId = selectedAstronautId,
+    env: MissionEnvironment = environment
+  ) {
+    const seq = ++baselineLoadSeq.current;
+    const feed = await fetchMissionFeed(env, 14, astronautId);
+    if (seq !== baselineLoadSeq.current) return;
 
-  async function restoreBaselineFromFeed(astronautId = selectedAstronautId) {
-    const feed = await fetchMissionFeed(environment, 14, astronautId);
     if (feed?.telemetry?.length) {
-      setBaselineHistory(feed.telemetry);
-      setEnvironment(feed.environment);
-      saveLogs(feed.telemetry);
+      const telemetry = feed.telemetry.map((row) => ({ ...row, environment: env }));
+      setBaselineHistory(telemetry);
+      setEnvironment(env);
+      saveLogs(telemetry);
       setMockFeedLabel(
         `${feed.crew.callSign} · ${feed.crew.agency} · ${feed.source}`
       );
       return;
     }
-    const baseline = buildMockMissionHistory(environment);
+    const baseline = buildMockMissionHistory(env);
     setBaselineHistory(baseline);
+    setEnvironment(env);
     saveLogs(baseline);
   }
 
   function resetBaseline() {
+    if (simControlsLocked) return;
     setActiveScenarios([]);
     saveActiveScenarios([]);
+    setReplayFocus(null);
     void restoreBaselineFromFeed();
   }
 
   function toggleScenario(scenarioId: MissionScenarioId) {
+    if (simControlsLocked) return;
     setActiveScenarios((prev) => {
       const next = prev.includes(scenarioId)
         ? prev.filter((id) => id !== scenarioId)
@@ -4219,10 +4540,12 @@ export function MissionDashboard() {
   }
 
   async function onSelectAstronaut(astronautId: string) {
+    if (simControlsLocked) return;
     setSelectedAstronautId(astronautId);
     saveAstronautId(astronautId);
     setActiveScenarios([]);
     saveActiveScenarios([]);
+    setReplayFocus(null);
     await restoreBaselineFromFeed(astronautId);
   }
 
@@ -4230,8 +4553,27 @@ export function MissionDashboard() {
     setLocale((l) => (l === "es" ? "en" : "es"));
   }
 
-  const nextDay = (latest?.missionDay ?? 14) + 1;
-  const envLabel = ENVIRONMENT_LABELS[locale][environment];
+  function onSelectEnvironment(env: MissionEnvironment) {
+    if (simControlsLocked || env === environment) return;
+    setEnvironment(env);
+    setReplayFocus(null);
+    void restoreBaselineFromFeed(selectedAstronautId, env);
+  }
+
+  function onChartDaySelect(reading: VitalReadings) {
+    setReplayFocus(reading);
+    requestAnimationFrame(() => {
+      bodyTrackerAnchorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
+
+  function returnToLiveNow() {
+    setReplayFocus(null);
+  }
+
+  const lastVisualAttachment = findLastVisualAttachment(history);
+
+  const envLabel = ENVIRONMENT_LABELS[locale][focusReading.environment];
 
   return (
     <div className="mission-shell">
@@ -4345,16 +4687,71 @@ export function MissionDashboard() {
         tabIndex={-1}
         className="mx-auto max-w-7xl space-y-10 px-4 py-8 sm:px-6 lg:px-8"
       >
+        {replayFocus ? (
+          <section
+            ref={bodyTrackerAnchorRef}
+            aria-labelledby="body-replay-heading"
+            className="mission-panel sticky top-2 z-20 scroll-mt-4 border border-primary/40 bg-base-100/95 p-4 shadow-lg backdrop-blur-sm"
+          >
+            <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 id="body-replay-heading" className="mission-section-title text-base">
+                  {ui.bodyReplayAtTop}
+                </h2>
+                <p className="mt-1 text-sm text-base-content/80">
+                  {ui.missionDay} {replayFocus.missionDay} ·{" "}
+                  <span className="mission-readout text-primary">
+                    {formatMissionTimestamp(replayFocus.recordedAt, locale)} UTC
+                  </span>
+                </p>
+              </div>
+              <p
+                className={`rounded-field px-3 py-2 text-xs font-semibold uppercase ${overallStyles.bg} ${overallStyles.text}`}
+                role="status"
+              >
+                {statusLabelForLocale(locale, evaluation.overallStatus)}
+              </p>
+            </div>
+            <BodyMap systemStatuses={evaluation.systemStatuses} locale={locale} />
+          </section>
+        ) : null}
+
         <section aria-labelledby="sim-controls-heading">
           <h2 id="sim-controls-heading" className="sr-only">
             {ui.simulationControls}
           </h2>
-          <div className="mission-panel p-4">
+          <div
+            className={`mission-panel p-4 ${simControlsLocked ? "opacity-75" : ""}`}
+            aria-disabled={simControlsLocked}
+          >
+            {simControlsLocked ? (
+              <p
+                role="status"
+                className="mb-4 rounded-field border border-primary/35 bg-primary/10 px-3 py-2 text-sm text-base-content/85"
+              >
+                {ui.replayModeBanner}{" "}
+                <span className="mission-readout text-xs text-primary">
+                  {formatMissionTimestamp(replayFocus!.recordedAt, locale)} UTC
+                </span>
+              </p>
+            ) : null}
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <p className="mission-section-title">{ui.simulationControls}</p>
-              <p className="mission-readout text-base-content/80 lg:text-right">
-                {ui.missionDay} {latest.missionDay} · {envLabel}
-              </p>
+              <div className="flex flex-col items-start gap-2 lg:items-end">
+                <p className="mission-readout text-base-content/80 lg:text-right">
+                  {ui.missionDay} {focusReading.missionDay} · {envLabel}
+                </p>
+                {simControlsLocked ? (
+                  <button
+                    type="button"
+                    onClick={returnToLiveNow}
+                    className="btn btn-sm btn-primary gap-2"
+                  >
+                    <Clock className="h-4 w-4" aria-hidden />
+                    {ui.returnToNow}
+                  </button>
+                ) : null}
+              </div>
             </div>
             <p className="mt-2 text-xs text-base-content/65">{ui.scenarioTapToDeactivate}</p>
             <p className="mt-2 text-xs text-base-content/70">
@@ -4365,37 +4762,61 @@ export function MissionDashboard() {
             </p>
             <p className="mt-1 text-xs text-base-content/65">{envMeta.scenarioContext}</p>
 
-            <label className="mt-4 block max-w-xl">
-              <span className="text-xs font-semibold uppercase tracking-wide text-base-content/65">
-                {ui.crewRoster}
-              </span>
-              <select
-                className="select select-bordered select-sm mt-1 w-full"
-                value={selectedAstronautId}
-                onChange={(e) => void onSelectAstronaut(e.target.value)}
-                aria-label={ui.selectAstronaut}
-              >
-                {roster.map((member) => (
-                  <option key={member.id} value={member.id}>
-                    {member.callSign} — {member.fullName} (
-                    {archetypeLabel(member.archetype, locale)}) ·{" "}
-                    {ENVIRONMENT_LABELS[locale][member.homeEnvironment]}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <fieldset
+              disabled={simControlsLocked}
+              className="mt-4 space-y-4 rounded-field border-0 p-0 disabled:pointer-events-none disabled:opacity-60"
+            >
+            <div className="grid gap-4 lg:grid-cols-2">
+              <label className="block max-w-xl">
+                <span className="text-xs font-semibold uppercase tracking-wide text-base-content/65">
+                  {ui.crewRoster}
+                </span>
+                <select
+                  className="select select-bordered select-sm mt-1 w-full"
+                  value={selectedAstronautId}
+                  onChange={(e) => void onSelectAstronaut(e.target.value)}
+                  aria-label={ui.selectAstronaut}
+                  disabled={simControlsLocked}
+                >
+                  {roster.map((member) => (
+                    <option key={member.id} value={member.id}>
+                      {member.callSign} — {member.fullName} (
+                      {archetypeLabel(member.archetype, locale)}) ·{" "}
+                      {ENVIRONMENT_LABELS[locale][member.homeEnvironment]}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
-            {mockFeedLabel ? (
-              <p className="mt-2 text-xs text-base-content/70">
-                <span className="font-medium text-emerald-400">{ui.mockGroundFeedConnected}</span>
-                {" · "}
-                {ui.mockGroundFeed}
-                {" — "}
-                <span className="mission-readout">{mockFeedLabel}</span>
-              </p>
-            ) : null}
+              <div>
+                <span className="text-xs font-semibold uppercase tracking-wide text-base-content/65">
+                  {ui.missionEnvironment}
+                </span>
+                <div
+                  className="mt-1 flex flex-wrap gap-2"
+                  role="tablist"
+                  aria-label={ui.missionEnvironment}
+                >
+                  {ENVIRONMENT_IDS.map((id) => (
+                    <button
+                      key={id}
+                      type="button"
+                      role="tab"
+                      aria-selected={environment === id}
+                      onClick={() => void onSelectEnvironment(id)}
+                      disabled={simControlsLocked}
+                      className={`btn btn-xs sm:btn-sm ${
+                        environment === id ? "btn-primary" : "btn-outline"
+                      }`}
+                    >
+                      {ENVIRONMENT_LABELS[locale][id]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
             <div
-              className="mt-4 flex flex-wrap gap-2"
+              className="flex flex-wrap gap-2"
               role="group"
               aria-label={ui.simulationControls}
             >
@@ -4407,6 +4828,7 @@ export function MissionDashboard() {
                 inactiveLabel={ui.scenarioInactive}
                 onClick={() => toggleScenario("solar")}
                 tone="amber"
+                disabled={simControlsLocked}
               />
               <ScenarioButton
                 icon={AlertTriangle}
@@ -4416,6 +4838,7 @@ export function MissionDashboard() {
                 inactiveLabel={ui.scenarioInactive}
                 onClick={() => toggleScenario("cardio")}
                 tone="rose"
+                disabled={simControlsLocked}
               />
               <ScenarioButton
                 icon={Radio}
@@ -4425,6 +4848,7 @@ export function MissionDashboard() {
                 inactiveLabel={ui.scenarioInactive}
                 onClick={() => toggleScenario("isolation")}
                 tone="violet"
+                disabled={simControlsLocked}
               />
               <ScenarioButton
                 icon={RotateCcw}
@@ -4434,8 +4858,20 @@ export function MissionDashboard() {
                 inactiveLabel={ui.scenarioInactive}
                 onClick={resetBaseline}
                 tone="neutral"
+                disabled={simControlsLocked}
               />
             </div>
+            </fieldset>
+
+            {mockFeedLabel ? (
+              <p className="mt-2 text-xs text-base-content/70">
+                <span className="font-medium text-emerald-400">{ui.mockGroundFeedConnected}</span>
+                {" · "}
+                {ui.mockGroundFeed}
+                {" — "}
+                <span className="mission-readout">{mockFeedLabel}</span>
+              </p>
+            ) : null}
           </div>
         </section>
 
@@ -4444,12 +4880,16 @@ export function MissionDashboard() {
             className="space-y-8 xl:col-span-8"
             aria-labelledby="body-systems-heading"
           >
-            <MotionReveal>
-              <h2 id="body-systems-heading" className="mission-section-title mb-4">
-                {ui.bodyMapTitle}
-              </h2>
-              <BodyMap systemStatuses={evaluation.systemStatuses} locale={locale} />
-            </MotionReveal>
+            {!replayFocus ? (
+              <MotionReveal>
+                <section ref={bodyTrackerAnchorRef} id="body-systems-section">
+                  <h2 id="body-systems-heading" className="mission-section-title mb-4">
+                    {ui.bodyMapTitle}
+                  </h2>
+                  <BodyMap systemStatuses={evaluation.systemStatuses} locale={locale} />
+                </section>
+              </MotionReveal>
+            ) : null}
 
             <MotionReveal>
               <h2 className="mission-section-title mb-4">{ui.missionTimeline}</h2>
@@ -4457,20 +4897,17 @@ export function MissionDashboard() {
                 history={history}
                 locale={locale}
                 environment={environment}
-                onEnvironmentChange={(env) => setEnvironment(env)}
+                selectedRecordedAt={replayFocus?.recordedAt ?? null}
+                onSelectPoint={onChartDaySelect}
+                animateLines={!simControlsLocked}
               />
-            </MotionReveal>
-
-            <MotionReveal>
-              <h2 className="mission-section-title mb-4">{ui.logVitals}</h2>
-              <VitalsInputForm
-                key={`${environment}-${nextDay}`}
-                environment={environment}
-                missionDay={nextDay}
-                locale={locale}
-                onSubmit={appendReading}
-                pendingReactionMs={pendingReactionMs}
-              />
+              {replayFocus ? (
+                <DayReplayDetail
+                  reading={replayFocus}
+                  priorHistory={historyBeforeFocus}
+                  locale={locale}
+                />
+              ) : null}
             </MotionReveal>
           </section>
 
@@ -4498,6 +4935,30 @@ export function MissionDashboard() {
             </MotionReveal>
 
             <MotionReveal>
+              <h2 className="mission-section-title mb-4">{ui.lastVisualInspection}</h2>
+              <div className="mission-panel space-y-3 p-4 text-sm text-base-content/85">
+                {lastVisualAttachment ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={lastVisualAttachment.url}
+                    alt={ui.uploadPreview}
+                    className="max-h-48 w-full rounded-lg object-contain bg-base-300/40"
+                  />
+                ) : (
+                  <p className="text-base-content/70">{ui.noVisualAttachment}</p>
+                )}
+                <p className="text-xs text-base-content/65">
+                  {ui.groundSyncSimulated.replace("{latency}", envMeta.latencyLabel)}
+                </p>
+                {lastVisualAttachment ? (
+                  <p className="mission-readout text-xs text-primary">
+                    {ui.missionDay} {lastVisualAttachment.missionDay}
+                  </p>
+                ) : null}
+              </div>
+            </MotionReveal>
+
+            <MotionReveal>
               <h2 className="mission-section-title mb-4">{ui.dailyCountermeasures}</h2>
               <MissionRoutinePanel
                 locale={locale}
@@ -4515,9 +4976,52 @@ export function MissionDashboard() {
           </aside>
         </div>
       </main>
+
+      <footer className="border-t border-base-300/60 bg-base-200/50">
+        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+          <p className="text-sm font-medium text-base-content">{ui.officialReferences}</p>
+          <ul className="mt-3 flex flex-col gap-2 text-sm sm:flex-row sm:flex-wrap sm:gap-x-6 sm:gap-y-2">
+            {OFFICIAL_FOOTER_LINKS.map((link) => (
+              <li key={link.url}>
+                <a
+                  href={link.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="link link-primary"
+                >
+                  {link.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </footer>
     </div>
   );
 }
+
+const OFFICIAL_FOOTER_LINKS = [
+  {
+    label: "NASA HRP — Spaceflight Hazards",
+    url: "https://www.nasa.gov/hrp/hazards/",
+  },
+  {
+    label: "NASA HRP — Human Health Risks",
+    url: "https://www.nasa.gov/hrp/risks/",
+  },
+  {
+    label: "NASA HRP — Ongoing Research",
+    url: "https://www.nasa.gov/hrp/ongoing-hrp-research/",
+  },
+  {
+    label: "CSA — Monitoring radiation & astronaut health",
+    url: "https://www.asc-csa.gc.ca/eng/news/articles/2026/2026-02-26-monitoring-radiation-astronaut-health.asp",
+  },
+  {
+    label: "CSA — Science on the ISS",
+    url: "https://www.asc-csa.gc.ca/eng/iss/science/why-do-we-conduct-science-experiments-in-space.asp",
+  },
+] as const;
 
 function TelemetryField({
   icon: Icon,
@@ -4576,6 +5080,7 @@ function ScenarioButton({
   active,
   activeLabel,
   inactiveLabel,
+  disabled = false,
 }: {
   icon: typeof Sun;
   label: string;
@@ -4584,6 +5089,7 @@ function ScenarioButton({
   active: boolean;
   activeLabel: string;
   inactiveLabel: string;
+  disabled?: boolean;
 }) {
   const isOn = active;
   const toneClasses = SCENARIO_TONE_CLASS[tone];
@@ -4594,6 +5100,7 @@ function ScenarioButton({
       type="button"
       onClick={onClick}
       aria-pressed={isOn}
+      disabled={disabled}
       className={`btn btn-sm gap-2 border font-normal ${
         isOn ? toneClasses.active : toneClasses.idle
       }`}
@@ -4630,7 +5137,7 @@ File: src/features/timeline/HealthCharts.tsx
 ================
 "use client";
 
-import { useEffect, useMemo, useState, type ReactElement } from "react";
+import { useMemo, useState, type ReactElement, type ReactNode } from "react";
 import {
   Area,
   AreaChart,
@@ -4645,110 +5152,116 @@ import {
   YAxis,
 } from "recharts";
 import { RADIATION_CHART_CAUTION_MSV } from "@/data/nasaKnowledge";
-import { buildMockMissionHistory } from "@/data/mockMissionHistory";
 import {
-  ENVIRONMENT_LABELS,
   ENVIRONMENT_MISSION_META,
   type AppLocale,
   UI_STRINGS,
 } from "@/lib/locale";
-import type { MissionEnvironment, VitalReadings } from "@/types/health";
-
-const ENVIRONMENT_IDS: MissionEnvironment[] = [
-  "station",
-  "spacecraft",
-  "rover",
-  "lunar_base",
-  "mars_base",
-];
+import { formatMissionTimestamp } from "@/lib/missionTime";
+import type { ChartTimeGranularity, MissionEnvironment, VitalReadings } from "@/types/health";
+import { buildChartTimeline, type ChartTimelineRow } from "./buildChartTimeline";
 
 interface HealthChartsProps {
   history: VitalReadings[];
   locale?: AppLocale;
-  environment?: MissionEnvironment;
-  onEnvironmentChange?: (env: MissionEnvironment) => void;
+  environment: MissionEnvironment;
+  selectedRecordedAt?: string | null;
+  onSelectPoint?: (reading: VitalReadings) => void;
+  animateLines?: boolean;
 }
 
 export function HealthCharts({
   history,
-  locale = "es",
-  environment: environmentProp,
-  onEnvironmentChange,
+  locale = "en",
+  environment,
+  selectedRecordedAt = null,
+  onSelectPoint,
+  animateLines = true,
 }: HealthChartsProps) {
   const ui = UI_STRINGS[locale];
-  const envLabels = ENVIRONMENT_LABELS[locale];
-
-  const [environment, setEnvironment] = useState<MissionEnvironment>(
-    environmentProp ?? history[0]?.environment ?? "station"
-  );
   const envMeta = ENVIRONMENT_MISSION_META[locale][environment];
+  const [granularity, setGranularity] = useState<ChartTimeGranularity>("days");
 
-  useEffect(() => {
-    if (environmentProp && environmentProp !== environment) {
-      setEnvironment(environmentProp);
-    }
-  }, [environmentProp, environment]);
+  const { rows: chartData, source } = useMemo(
+    () => buildChartTimeline(history, environment, granularity, locale),
+    [history, environment, granularity, locale]
+  );
 
-  const chartData = useMemo(() => {
-    const filtered = history.filter((h) => h.environment === environment);
-    const source =
-      filtered.length > 0 ? filtered : buildMockMissionHistory(environment);
-    return source.map((h, index) => {
-      const dose = h.radiationMsv ?? 0;
-      const cumulative = source
-        .slice(0, index + 1)
-        .reduce((acc, row) => acc + (row.radiationMsv ?? 0), 0);
-      return {
-        day: `D${h.missionDay}`,
-        missionDay: h.missionDay,
-        systolicBP: h.systolicBP,
-        heartRate: h.heartRate,
-        sleepHours: h.sleepHours,
-        bloodSugar: h.bloodSugar,
-        moodScore: h.moodScore,
-        radiationMsv: dose,
-        radiationCumulative: Math.round(cumulative * 100) / 100,
-      };
-    });
-  }, [history, environment]);
+  const selectedAxisLabel = useMemo(() => {
+    if (!selectedRecordedAt) return null;
+    const row = chartData.find((r) => r.recordedAt === selectedRecordedAt);
+    return row?.axisLabel ?? null;
+  }, [chartData, selectedRecordedAt]);
 
-  function handleEnvChange(env: MissionEnvironment) {
-    setEnvironment(env);
-    onEnvironmentChange?.(env);
-  }
+  const chartKey = `${environment}-${granularity}-${source.length}-${selectedRecordedAt ?? "live"}`;
+
+  const scaleHint =
+    granularity === "minutes"
+      ? ui.chartScaleHintMinutes
+      : granularity === "hours"
+        ? ui.chartScaleHintHours
+        : ui.chartScaleHintDays;
+
+  const tooltipLabel = (
+    _label: ReactNode,
+    payload: readonly { payload?: ChartTimelineRow }[]
+  ): ReactNode => {
+    const row = payload[0]?.payload;
+    if (!row) return _label;
+    return `${ui.missionDay} ${row.missionDay} · ${formatMissionTimestamp(row.recordedAt, locale)} UTC`;
+  };
+
+  const sharedXAxis = (
+    <XAxis dataKey="axisLabel" stroke="#94a3b8" fontSize={10} interval="preserveStartEnd" />
+  );
+
+  const selectionMarker =
+    selectedAxisLabel !== null ? (
+      <ReferenceLine
+        x={selectedAxisLabel}
+        stroke="#22d3ee"
+        strokeWidth={2}
+        strokeDasharray="4 2"
+      />
+    ) : null;
 
   return (
     <div className="space-y-6">
-      <div
-        role="tablist"
-        aria-label={ui.missionEnvironment}
-        className="flex flex-wrap items-center gap-2"
-      >
-        <span className="text-sm text-base-content/80">{ui.missionEnvironment}:</span>
-        {ENVIRONMENT_IDS.map((id) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            id={`env-tab-${id}`}
-            aria-selected={environment === id}
-            aria-controls={`env-panel-${id}`}
-            onClick={() => handleEnvChange(id)}
-            className={`btn btn-xs sm:btn-sm ${
-              environment === id ? "btn-primary" : "btn-outline"
-            }`}
-          >
-            {envLabels[id]}
-          </button>
-        ))}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-xs text-base-content/65">{ui.chartPointHint}</p>
+        <div
+          className="flex flex-col items-stretch gap-1 sm:items-end"
+          role="group"
+          aria-label={ui.chartTimeScale}
+        >
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-base-content/60">
+            {ui.chartTimeScale}
+          </span>
+          <div className="join">
+            {(
+              [
+                ["minutes", ui.chartScaleMinutes],
+                ["hours", ui.chartScaleHours],
+                ["days", ui.chartScaleDays],
+              ] as const
+            ).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                className={`btn btn-xs join-item ${
+                  granularity === id ? "btn-primary" : "btn-ghost border border-base-300/60"
+                }`}
+                aria-pressed={granularity === id}
+                onClick={() => setGranularity(id)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <p className="text-[10px] text-base-content/55">{scaleHint}</p>
+        </div>
       </div>
 
-      <div
-        id={`env-panel-${environment}`}
-        role="tabpanel"
-        aria-labelledby={`env-tab-${environment}`}
-        className="space-y-6"
-      >
       <div className="mission-panel space-y-2 p-4 text-sm text-base-content/85">
         <p className="mission-section-title text-base">{ui.environmentBrief}</p>
         <p>
@@ -4769,12 +5282,13 @@ export function HealthCharts({
       <div className="mission-panel p-4">
         <h3 className="mb-3 text-sm font-medium">{ui.chartCardio}</h3>
         <ChartContainer>
-          <LineChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+          <LineChart key={`cardio-${chartKey}`} data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-            <XAxis dataKey="day" stroke="#94a3b8" fontSize={12} />
+            {sharedXAxis}
             <YAxis yAxisId="bp" stroke="#94a3b8" fontSize={12} />
             <YAxis yAxisId="hr" orientation="right" stroke="#94a3b8" fontSize={12} />
             <Tooltip
+              labelFormatter={tooltipLabel}
               contentStyle={{
                 background: "#0f172a",
                 border: "1px solid #334155",
@@ -4782,6 +5296,7 @@ export function HealthCharts({
               }}
             />
             <Legend />
+            {selectionMarker}
             <Line
               yAxisId="bp"
               type="monotone"
@@ -4789,7 +5304,9 @@ export function HealthCharts({
               name={ui.chartSystolic}
               stroke="#38bdf8"
               strokeWidth={2}
-              dot={false}
+              dot={makeClickableDot(onSelectPoint, selectedRecordedAt) as never}
+              isAnimationActive={animateLines}
+              animationDuration={850}
             />
             <Line
               yAxisId="hr"
@@ -4798,7 +5315,9 @@ export function HealthCharts({
               name={ui.chartHeartRate}
               stroke="#a78bfa"
               strokeWidth={2}
-              dot={false}
+              dot={makeClickableDot(onSelectPoint, selectedRecordedAt, "#a78bfa") as never}
+              isAnimationActive={animateLines}
+              animationDuration={900}
             />
           </LineChart>
         </ChartContainer>
@@ -4807,11 +5326,12 @@ export function HealthCharts({
       <div className="mission-panel p-4">
         <h3 className="mb-3 text-sm font-medium">{ui.chartRecovery}</h3>
         <ChartContainer>
-          <AreaChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+          <AreaChart key={`recovery-${chartKey}`} data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-            <XAxis dataKey="day" stroke="#94a3b8" fontSize={12} />
+            {sharedXAxis}
             <YAxis stroke="#94a3b8" fontSize={12} />
             <Tooltip
+              labelFormatter={tooltipLabel}
               contentStyle={{
                 background: "#0f172a",
                 border: "1px solid #334155",
@@ -4819,12 +5339,16 @@ export function HealthCharts({
               }}
             />
             <Legend />
+            {selectionMarker}
             <Area
               type="monotone"
               dataKey="sleepHours"
               name={ui.chartSleep}
               stroke="#34d399"
               fill="#34d39933"
+              dot={makeClickableDot(onSelectPoint, selectedRecordedAt, "#34d399") as never}
+              isAnimationActive={animateLines}
+              animationDuration={850}
             />
             <Area
               type="monotone"
@@ -4832,6 +5356,9 @@ export function HealthCharts({
               name={ui.chartGlucose}
               stroke="#fbbf24"
               fill="#fbbf2433"
+              dot={makeClickableDot(onSelectPoint, selectedRecordedAt, "#fbbf24") as never}
+              isAnimationActive={animateLines}
+              animationDuration={900}
             />
           </AreaChart>
         </ChartContainer>
@@ -4840,11 +5367,12 @@ export function HealthCharts({
       <div className="mission-panel p-4">
         <h3 className="mb-3 text-sm font-medium">{ui.chartRadiation}</h3>
         <ChartContainer>
-          <LineChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+          <LineChart key={`radiation-${chartKey}`} data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-            <XAxis dataKey="day" stroke="#94a3b8" fontSize={12} />
+            {sharedXAxis}
             <YAxis stroke="#94a3b8" fontSize={12} />
             <Tooltip
+              labelFormatter={tooltipLabel}
               contentStyle={{
                 background: "#0f172a",
                 border: "1px solid #334155",
@@ -4852,6 +5380,7 @@ export function HealthCharts({
               }}
             />
             <Legend />
+            {selectionMarker}
             <ReferenceLine
               y={RADIATION_CHART_CAUTION_MSV}
               stroke="#fbbf24"
@@ -4869,7 +5398,9 @@ export function HealthCharts({
               name={ui.vitals.radiationMsv}
               stroke="#f472b6"
               strokeWidth={2}
-              dot={false}
+              dot={makeClickableDot(onSelectPoint, selectedRecordedAt, "#f472b6") as never}
+              isAnimationActive={animateLines}
+              animationDuration={850}
             />
             <Line
               type="monotone"
@@ -4879,13 +5410,42 @@ export function HealthCharts({
               strokeWidth={2}
               strokeDasharray="6 3"
               dot={false}
+              isAnimationActive={animateLines}
+              animationDuration={950}
             />
           </LineChart>
         </ChartContainer>
       </div>
-      </div>
     </div>
   );
+}
+
+function makeClickableDot(
+  onSelectPoint: ((reading: VitalReadings) => void) | undefined,
+  selectedRecordedAt: string | null,
+  fill = "#38bdf8"
+) {
+  return function ClickableDot(props: { cx?: number; cy?: number; payload?: ChartTimelineRow }) {
+    const { cx, cy, payload } = props;
+    if (cx === undefined || cy === undefined || !payload) return null;
+    const row = payload;
+    const isSelected = selectedRecordedAt === row.recordedAt;
+    return (
+      <circle
+        cx={cx}
+        cy={cy}
+        r={isSelected ? 7 : 4}
+        fill={isSelected ? "#22d3ee" : fill}
+        stroke="#0f172a"
+        strokeWidth={2}
+        style={{ cursor: onSelectPoint ? "pointer" : "default" }}
+        onClick={(event) => {
+          event.stopPropagation();
+          onSelectPoint?.(row.reading);
+        }}
+      />
+    );
+  };
 }
 
 function ChartContainer({ children }: { children: ReactElement }) {
@@ -4893,6 +5453,401 @@ function ChartContainer({ children }: { children: ReactElement }) {
     <ResponsiveContainer width="100%" height={220}>
       {children}
     </ResponsiveContainer>
+  );
+}
+
+================
+File: src/features/vitals-form/VitalsInputForm.tsx
+================
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Camera, Flame, Zap } from "lucide-react";
+import { EXAM_THRESHOLDS } from "@/data/nasaKnowledge";
+import {
+  MEASUREMENT_GUIDE_LOCALE,
+  type AppLocale,
+  UI_STRINGS,
+} from "@/lib/locale";
+import { statusStyles } from "@/lib/statusColors";
+import type { MissionEnvironment, VitalReadings, VitalsFormMetric } from "@/types/health";
+
+const STORAGE_KEY = "healthnasa_checkin_streak";
+const REACTION_KEY = "healthnasa_reaction_avg_ms";
+
+const STEP_METRICS: VitalsFormMetric[] = [
+  "systolicBP",
+  "diastolicBP",
+  "heartRate",
+  "bloodSugar",
+  "temperature",
+  "sleepHours",
+  "moodScore",
+  "radiationMsv",
+  "stressLevel",
+];
+
+const NORMAL_DEMO_VALUES: Pick<
+  VitalReadings,
+  | "systolicBP"
+  | "diastolicBP"
+  | "heartRate"
+  | "bloodSugar"
+  | "temperature"
+  | "sleepHours"
+  | "moodScore"
+  | "radiationMsv"
+  | "stressLevel"
+> = {
+  systolicBP: 118,
+  diastolicBP: 76,
+  heartRate: 72,
+  bloodSugar: 98,
+  temperature: 36.7,
+  sleepHours: 7.2,
+  moodScore: 4,
+  radiationMsv: 0.5,
+  stressLevel: 3,
+};
+
+interface VitalsInputFormProps {
+  environment: MissionEnvironment;
+  missionDay: number;
+  locale?: AppLocale;
+  onSubmit: (reading: VitalReadings) => void;
+  pendingReactionMs?: number;
+}
+
+export function VitalsInputForm({
+  environment,
+  missionDay,
+  locale = "en",
+  onSubmit,
+  pendingReactionMs,
+}: VitalsInputFormProps) {
+  const ui = UI_STRINGS[locale];
+
+  const [step, setStep] = useState(0);
+  const [streak, setStreak] = useState(0);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) setStreak(parseInt(raw, 10) || 0);
+    } catch {
+      /* offline / private mode */
+    }
+  }, []);
+  const [preview, setPreview] = useState<string | undefined>();
+  const [form, setForm] = useState<Partial<VitalReadings>>({
+    environment,
+    missionDay,
+    ...NORMAL_DEMO_VALUES,
+  });
+
+  const currentMetric = STEP_METRICS[step];
+  const isMoodStep = currentMetric === "moodScore";
+  const vitalsKey = currentMetric as keyof typeof ui.vitals;
+  const currentLabel = ui.vitals[vitalsKey] ?? currentMetric;
+
+  const threshold = useMemo(
+    () => EXAM_THRESHOLDS.find((t) => t.metric === currentMetric),
+    [currentMetric]
+  );
+
+  const guide = useMemo(() => {
+    if (!currentMetric) return null;
+    return MEASUREMENT_GUIDE_LOCALE[locale][currentMetric];
+  }, [currentMetric, locale]);
+
+  const updateField = useCallback((key: string, value: number) => {
+    setForm((f) => ({ ...f, [key]: value }));
+  }, []);
+
+  function onImageChange(file: File | null) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const url = typeof reader.result === "string" ? reader.result : undefined;
+      setPreview(url);
+      setForm((f) => ({ ...f, imageNoteOrDataUrl: url }));
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function bumpStreak() {
+    const next = streak + 1;
+    setStreak(next);
+    try {
+      localStorage.setItem(STORAGE_KEY, String(next));
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function quickFillNormal() {
+    setForm((f) => ({
+      ...f,
+      environment,
+      missionDay,
+      ...NORMAL_DEMO_VALUES,
+    }));
+    setStep(STEP_METRICS.length - 1);
+  }
+
+  function submitAll() {
+    let reactionMs = pendingReactionMs;
+    if (reactionMs === undefined) {
+      try {
+        const raw = localStorage.getItem(REACTION_KEY);
+        if (raw) reactionMs = parseInt(raw, 10);
+      } catch {
+        /* ignore */
+      }
+    }
+
+    const extraMetrics: Record<string, number | string> = {
+      ...(form.extraMetrics ?? {}),
+    };
+    if (reactionMs !== undefined && Number.isFinite(reactionMs)) {
+      extraMetrics.reactionTimeMs = reactionMs;
+    }
+
+    const reading: VitalReadings = {
+      missionDay,
+      recordedAt: new Date().toISOString(),
+      environment,
+      systolicBP: Number(form.systolicBP ?? 120),
+      diastolicBP: Number(form.diastolicBP ?? 80),
+      heartRate: Number(form.heartRate ?? 72),
+      bloodSugar: Number(form.bloodSugar ?? 100),
+      temperature: Number(form.temperature ?? 36.7),
+      sleepHours: Number(form.sleepHours ?? 7),
+      moodScore: Number(form.moodScore ?? 4),
+      radiationMsv: form.radiationMsv !== undefined ? Number(form.radiationMsv) : undefined,
+      stressLevel: form.stressLevel !== undefined ? Number(form.stressLevel) : undefined,
+      imageNoteOrDataUrl: form.imageNoteOrDataUrl,
+      extraMetrics: Object.keys(extraMetrics).length ? extraMetrics : undefined,
+    };
+    bumpStreak();
+    onSubmit(reading);
+  }
+
+  const moodValue = form.moodScore ?? 4;
+  const streakStyles = statusStyles(streak >= 7 ? "normal" : "warning");
+  const streakText = `${streak} ${ui.streak}`;
+
+  const stressValue = form.stressLevel ?? 4;
+  const fieldId = `vital-${currentMetric}`;
+  const stressOutputId = "stress-level-output";
+  const progressPct = Math.round(((step + 1) / STEP_METRICS.length) * 100);
+
+  const referenceHint =
+    threshold &&
+    !isMoodStep &&
+    currentMetric !== "stressLevel" &&
+    threshold.unit
+      ? `${ui.referenceRange}: ${threshold.normal.min ?? "—"}–${
+          threshold.normal.max ?? "—"
+        } ${threshold.unit}`
+      : null;
+
+  return (
+    <div className="mission-panel p-4">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-lg font-semibold">{ui.dailyCheckIn}</h3>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={quickFillNormal}
+            className="btn btn-sm btn-outline gap-2"
+          >
+            <Zap className="h-4 w-4" aria-hidden />
+            {ui.quickFillNormal}
+          </button>
+          <div
+            className={`badge gap-2 ${streakStyles.bg} ${streakStyles.text}`}
+            aria-label={streakText}
+          >
+            <Flame className="h-4 w-4" aria-hidden />
+            {streakText}
+          </div>
+        </div>
+      </div>
+
+      <label htmlFor={fieldId} className="mb-2 block text-sm text-base-content/80">
+        {ui.stepOf} {step + 1} {ui.of} {STEP_METRICS.length}: {currentLabel}
+        {threshold?.unit && !isMoodStep && currentMetric !== "stressLevel" ? (
+          <span className="ml-1 text-base-content/60">({threshold.unit})</span>
+        ) : null}
+      </label>
+      <progress
+        className="progress progress-primary mb-4 w-full"
+        value={progressPct}
+        max={100}
+        aria-label={`${ui.stepOf} ${step + 1} ${ui.of} ${STEP_METRICS.length}`}
+      />
+
+      {guide && (
+        <div className="mb-4 rounded-box border border-base-300 bg-base-100/80 p-3 text-sm text-base-content/85">
+          <p className="font-medium text-base-content">{ui.howToMeasure}</p>
+          <p className="mt-1">{guide.howTo}</p>
+          <p className="mt-2 font-medium text-base-content">{ui.whyInSpace}</p>
+          <p className="mt-1">{guide.whySpace}</p>
+        </div>
+      )}
+
+      <fieldset className="min-w-0">
+        <legend className="sr-only">{currentLabel}</legend>
+
+        {isMoodStep ? (
+          <div role="radiogroup" aria-labelledby={fieldId} className="flex flex-wrap gap-2">
+            {[1, 2, 3, 4, 5].map((n) => (
+              <button
+                key={n}
+                type="button"
+                role="radio"
+                aria-checked={moodValue === n}
+                onClick={() => updateField("moodScore", n)}
+                className={`btn btn-sm ${
+                  moodValue === n ? "btn-success" : "btn-outline"
+                }`}
+              >
+                {n} — {ui.mood[n - 1]}
+              </button>
+            ))}
+          </div>
+        ) : currentMetric === "stressLevel" ? (
+          <div className="space-y-2">
+            <input
+              id={fieldId}
+              type="range"
+              min={1}
+              max={10}
+              step={1}
+              value={stressValue}
+              aria-valuemin={1}
+              aria-valuemax={10}
+              aria-valuenow={stressValue}
+              aria-describedby={stressOutputId}
+              onChange={(e) => updateField("stressLevel", Number(e.target.value))}
+              className="range range-primary w-full"
+            />
+            <p
+              id={stressOutputId}
+              className="text-center text-lg font-semibold"
+              aria-live="polite"
+            >
+              <span className="sr-only">{ui.stressValueLabel}: </span>
+              {stressValue} / 10
+            </p>
+          </div>
+        ) : (
+          <NumericVitalInput
+            fieldId={fieldId}
+            currentMetric={currentMetric}
+            form={form}
+            referenceHint={referenceHint}
+            thresholdUnit={threshold?.unit}
+            onChange={updateField}
+          />
+        )}
+      </fieldset>
+
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        <label htmlFor="vital-image-upload" className="btn btn-sm btn-outline gap-2">
+          <Camera className="h-4 w-4" aria-hidden />
+          {ui.vitalsFileLabel}
+          <input
+            id="vital-image-upload"
+            type="file"
+            accept="image/*"
+            className="sr-only"
+            onChange={(e) => onImageChange(e.target.files?.[0] ?? null)}
+          />
+        </label>
+        {preview && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={preview}
+            alt={ui.uploadPreview}
+            className="h-12 w-12 rounded object-cover"
+          />
+        )}
+      </div>
+
+      <div className="mt-6 flex justify-between gap-2">
+        <button
+          type="button"
+          disabled={step === 0}
+          onClick={() => setStep((s) => Math.max(0, s - 1))}
+          className="btn btn-outline"
+        >
+          {ui.back}
+        </button>
+        {step < STEP_METRICS.length - 1 ? (
+          <button type="button" onClick={() => setStep((s) => s + 1)} className="btn btn-primary">
+            {ui.next}
+          </button>
+        ) : (
+          <button type="button" onClick={submitAll} className="btn btn-success">
+            {ui.saveLog}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function NumericVitalInput({
+  fieldId,
+  currentMetric,
+  form,
+  referenceHint,
+  thresholdUnit,
+  onChange,
+}: {
+  fieldId: string;
+  currentMetric: VitalsFormMetric;
+  form: Partial<VitalReadings>;
+  referenceHint: string | null;
+  thresholdUnit?: string;
+  onChange: (key: string, value: number) => void;
+}) {
+  const numericValue =
+    currentMetric === "radiationMsv"
+      ? (form.radiationMsv ?? "")
+      : ((form[currentMetric as keyof VitalReadings] as number | undefined) ?? "");
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2">
+        <input
+          id={fieldId}
+          type="number"
+          inputMode="decimal"
+          aria-required="true"
+          step={
+            currentMetric === "temperature" ||
+            currentMetric === "sleepHours" ||
+            currentMetric === "radiationMsv"
+              ? 0.1
+              : 1
+          }
+          className="input input-bordered w-full flex-1"
+          value={numericValue}
+          onChange={(e) => onChange(currentMetric, Number(e.target.value))}
+        />
+        {thresholdUnit ? (
+          <span className="shrink-0 text-sm font-medium text-base-content/70" aria-hidden>
+            {thresholdUnit}
+          </span>
+        ) : null}
+      </div>
+      {referenceHint ? (
+        <p className="text-xs text-base-content/65">{referenceHint}</p>
+      ) : null}
+    </div>
   );
 }
 

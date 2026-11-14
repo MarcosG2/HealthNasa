@@ -29,6 +29,9 @@ export type BodySystemStatus =
 /** Demo mission scenario toggles in the dashboard simulation row */
 export type MissionScenarioId = "solar" | "cardio" | "isolation";
 
+/** Mission timeline chart bucket for HealthCharts time-scale toggles */
+export type ChartTimeGranularity = "minutes" | "hours" | "days";
+
 export type AstronautHealthArchetype =
   | "healthy"
   | "cardio_warning"

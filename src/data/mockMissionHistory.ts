@@ -1,6 +1,7 @@
 import type { MissionEnvironment, VitalReadings } from "@/types/health";
+import { missionLogEventsForDay } from "@/data/intradaySamples";
 
-const baseDate = new Date("2026-11-01T08:00:00Z");
+const baseDate = new Date("2026-11-01T00:00:00Z");
 
 function entry(
   day: number,
@@ -8,6 +9,9 @@ function entry(
 ): VitalReadings {
   const d = new Date(baseDate);
   d.setUTCDate(d.getUTCDate() + day - 1);
+  /** Stagger daily rollup time (hours:minutes:seconds UTC) per mission day. */
+  d.setUTCHours(6 + (day % 12), (day * 7) % 60, (day * 11) % 60, 0);
+  const env = partial.environment;
   return {
     missionDay: day,
     recordedAt: d.toISOString(),
@@ -21,7 +25,11 @@ function entry(
     stressLevel: 3,
     radiationMsv: 0.4 + day * 0.02,
     ...partial,
-    environment: partial.environment,
+    environment: env,
+    extraMetrics: {
+      ...(partial.extraMetrics ?? {}),
+      missionEvents: missionLogEventsForDay(day, env),
+    },
   };
 }
 

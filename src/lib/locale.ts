@@ -530,6 +530,31 @@ export const EVALUATOR_COPY: Record<
   },
 };
 
+export const MISSION_EVENT_LABELS: Record<AppLocale, Record<string, string>> = {
+  es: {
+    routine_vitals: "Sincronización de vitales",
+    habitat_air_check: "Control de aire de cabina",
+    resistive_exercise_block: "Bloque de ejercicio resistivo",
+    hydration_protocol: "Protocolo de hidratación",
+    solar_particle_watch: "Vigilancia de partículas solares",
+    circadian_light_therapy: "Terapia lumínica circadiana",
+    ground_sync_window: "Ventana de enlace con Tierra",
+    eva_suit_prep: "Preparación de traje EVA",
+    autonomous_med_briefing: "Briefing médico autónomo",
+  },
+  en: {
+    routine_vitals: "Vitals sync",
+    habitat_air_check: "Habitat air check",
+    resistive_exercise_block: "Resistive exercise block",
+    hydration_protocol: "Hydration protocol",
+    solar_particle_watch: "Solar particle watch",
+    circadian_light_therapy: "Circadian light therapy",
+    ground_sync_window: "Ground sync window",
+    eva_suit_prep: "EVA suit prep",
+    autonomous_med_briefing: "Autonomous medical briefing",
+  },
+};
+
 export const UI_STRINGS = {
   es: {
     metaTitle: "Control de salud de misión | NASA Space Apps",
@@ -618,6 +643,23 @@ export const UI_STRINGS = {
     noVisualAttachment: "Sin imagen adjunta aún.",
     groundSyncSimulated:
       "Sincronización con Tierra simulada (latencia: {latency})",
+    chartPointHint:
+      "Toca un punto de la curva (día y hora UTC) para revisar ese instante en modo solo lectura.",
+    chartTimeScale: "Escala de tiempo",
+    chartScaleMinutes: "Minutos",
+    chartScaleHours: "Horas",
+    chartScaleDays: "Días",
+    chartScaleHintMinutes: "Muestras cada ~24 min (UTC)",
+    chartScaleHintHours: "Muestras cada hora (UTC)",
+    chartScaleHintDays: "Un punto por día de misión",
+    bodyReplayAtTop: "Estado corporal en el instante seleccionado",
+    dayReplayTitle: "Instante de misión (revisión)",
+    dayEventsLabel: "Eventos del día",
+    measuredAtEnvironment: "Entorno de la medición",
+    intradayChartHint: "Variación intradía (muestras cada ~60 min, hora UTC)",
+    replayModeBanner:
+      "Modo revisión histórica — las simulaciones están bloqueadas hasta volver al presente.",
+    returnToNow: "Volver al presente",
     vitals: {
       systolicBP: "PA sistólica",
       diastolicBP: "PA diastólica",
@@ -711,6 +753,23 @@ export const UI_STRINGS = {
     lastVisualInspection: "Last visual inspection / ground attachment",
     noVisualAttachment: "No image attached yet.",
     groundSyncSimulated: "Ground sync simulated (latency: {latency})",
+    chartPointHint:
+      "Tap any point on the curves (UTC day and time) to inspect that timestamp in read-only mode.",
+    chartTimeScale: "Time scale",
+    chartScaleMinutes: "Minutes",
+    chartScaleHours: "Hours",
+    chartScaleDays: "Days",
+    chartScaleHintMinutes: "~24 min samples (UTC)",
+    chartScaleHintHours: "Hourly samples (UTC)",
+    chartScaleHintDays: "One point per mission day",
+    bodyReplayAtTop: "Body status at selected moment",
+    dayReplayTitle: "Mission snapshot (review)",
+    dayEventsLabel: "Day events",
+    measuredAtEnvironment: "Measurement environment",
+    intradayChartHint: "Intraday trend (~60 min samples, UTC time axis)",
+    replayModeBanner:
+      "Historical review mode — simulations stay locked until you return to now.",
+    returnToNow: "Return to now",
     stepOf: "Step",
     of: "of",
     howToMeasure: "How to measure",
