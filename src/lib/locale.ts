@@ -51,22 +51,21 @@ export function escalationLabel(
 
 export const ENVIRONMENT_LABELS: Record<
   AppLocale,
-  Record<
-    "station" | "spacecraft" | "rover" | "lunar_base",
-    string
-  >
+  Record<MissionEnvironment, string>
 > = {
   es: {
-    station: "Estación espacial",
-    spacecraft: "Nave en tránsito",
-    rover: "Rover (gravedad parcial)",
-    lunar_base: "Base lunar",
+    station: "Estación espacial (LEO)",
+    spacecraft: "Nave en tránsito profundo",
+    rover: "Rover (Luna / Marte EVA)",
+    lunar_base: "Base lunar (polo sur)",
+    mars_base: "Base en Marte",
   },
   en: {
-    station: "Space station",
-    spacecraft: "Transit spacecraft",
-    rover: "Rover (partial gravity)",
-    lunar_base: "Lunar base",
+    station: "Space station (LEO)",
+    spacecraft: "Deep-space transit",
+    rover: "Rover (lunar / Mars EVA)",
+    lunar_base: "Lunar south-pole base",
+    mars_base: "Mars surface base",
   },
 };
 
@@ -204,6 +203,13 @@ export const ENVIRONMENT_MISSION_META: Record<
       primaryHazards: ["gravity", "closed_environment"],
       autonomyNote:
         "El retraso es bajo, pero la tripulación debe seguir evaluándose sin depender de Tierra en emergencias.",
+      habitatName: "Módulos ISS / Gateway acoplados",
+      operationsContext:
+        "Microgravedad continua, ciclos de sueño fragmentados y CO₂ de cabina monitorizados por hora.",
+      healthFocus:
+        "Desacondicionamiento cardiovascular, visión por fluidos y fatiga por ruido/iluminación.",
+      scenarioContext:
+        "Puedes activar varios escenarios a la vez; la radiación solar suma a la de fondo y el cardio refleja pérdida de volumen.",
     },
     spacecraft: {
       latencyLabel: "4–20 min (ida) — tránsito",
@@ -211,6 +217,12 @@ export const ENVIRONMENT_MISSION_META: Record<
       primaryHazards: ["radiation", "distance", "isolation"],
       autonomyNote:
         "La telemedicina en tiempo real no es posible; las reglas locales de escalación son obligatorias.",
+      habitatName: "Cápsula Orion / nave de tránsito",
+      operationsContext:
+        "Tripulación reducida, comunicación diferida y GCR elevada fuera del magnetosfera.",
+      healthFocus: "Radiación acumulada, estado de ánimo y sueño con turnos largos.",
+      scenarioContext:
+        "Aislamiento y eventos solares se superponen con frecuencia; la escalación local prevalece sobre Tierra.",
     },
     rover: {
       latencyLabel: "~2,6 s ida y vuelta (EVA lunar)",
@@ -218,6 +230,13 @@ export const ENVIRONMENT_MISSION_META: Record<
       primaryHazards: ["radiation", "gravity"],
       autonomyNote:
         "En superficie, cada minuto cuenta; la autoevaluación guiada reemplaza la respuesta inmediata desde Tierra.",
+      habitatName: "Rover presurizado / traje EVA",
+      operationsContext:
+        "Gravedad parcial (Luna o Marte), polvo, temperatura extrema y ventanas cortas de comunicación.",
+      healthFocus:
+        "Frecuencia cardíaca con esfuerzo, hidratación en traje y fatiga musculoesquelética.",
+      scenarioContext:
+        "Cardio por deshidratación y radiación en EVA pueden coexistir; apaga cada escenario sin resetear los demás.",
     },
     lunar_base: {
       latencyLabel: "~2,6 s ida y vuelta (base polo sur)",
@@ -225,6 +244,26 @@ export const ENVIRONMENT_MISSION_META: Record<
       primaryHazards: ["radiation", "isolation", "closed_environment"],
       autonomyNote:
         "La base Artemis opera con latencia; el monitoreo offline-first permite decisiones antes de sincronizar con Tierra.",
+      habitatName: "Hábitat Artemis polo sur",
+      operationsContext:
+        "Noches largas, reciclaje de aire/agua y turnos interiores extendidos.",
+      healthFocus: "Sueño circadiano, inmunidad en cabina cerrada y dosis lunar acumulada.",
+      scenarioContext:
+        "Deriva circadiana y clima cerrado amplifican eventos solares si varios escenarios están encendidos.",
+    },
+    mars_base: {
+      latencyLabel: "8–22 min ida (Marte)",
+      latencyMs: 18 * 60 * 1000,
+      primaryHazards: ["radiation", "distance", "isolation", "closed_environment"],
+      autonomyNote:
+        "Marte impone latencia de minutos; la tripulación opera con médico a bordo y reglas HRP locales.",
+      habitatName: "Campamento superficie marciana",
+      operationsContext:
+        "Presión atmosférica baja fuera, polvo perchlorato y comunicaciones no sincrónicas con Tierra.",
+      healthFocus:
+        "Radiación GCR/SPE, densidad ósea en gravedad reducida y salud conductual en confinamiento largo.",
+      scenarioContext:
+        "Los tres escenarios simulados son comunes en campamentos marcianos y pueden permanecer activos simultáneamente.",
     },
   },
   en: {
@@ -234,6 +273,13 @@ export const ENVIRONMENT_MISSION_META: Record<
       primaryHazards: ["gravity", "closed_environment"],
       autonomyNote:
         "Delay is low, but crews still need self-assessment when ground support is busy or unavailable.",
+      habitatName: "ISS / Gateway stack",
+      operationsContext:
+        "Continuous microgravity, fragmented sleep cycles, and hourly cabin CO₂ monitoring.",
+      healthFocus:
+        "Cardiovascular deconditioning, fluid-shift vision issues, and noise/light fatigue.",
+      scenarioContext:
+        "You can run multiple scenarios together; solar events stack on background dose and cardio reflects volume loss.",
     },
     spacecraft: {
       latencyLabel: "4–20 min one-way — deep transit",
@@ -241,6 +287,12 @@ export const ENVIRONMENT_MISSION_META: Record<
       primaryHazards: ["radiation", "distance", "isolation"],
       autonomyNote:
         "Real-time telemedicine is not possible; local escalation rules must drive urgent decisions.",
+      habitatName: "Orion CM / transit vehicle",
+      operationsContext:
+        "Small crew, delayed comms, and elevated GCR outside the magnetosphere.",
+      healthFocus: "Cumulative radiation, mood, and sleep on long watches.",
+      scenarioContext:
+        "Isolation and solar storms often overlap; local escalation outruns ground consult.",
     },
     rover: {
       latencyLabel: "~2.6 s round-trip (lunar EVA)",
@@ -248,6 +300,12 @@ export const ENVIRONMENT_MISSION_META: Record<
       primaryHazards: ["radiation", "gravity"],
       autonomyNote:
         "On the surface, minutes matter; guided self-assessment replaces instant ground response.",
+      habitatName: "Pressurized rover / EVA suit",
+      operationsContext:
+        "Partial gravity (Moon or Mars), dust, thermal swings, and narrow comm windows.",
+      healthFocus: "Exercise heart rate, suit hydration, and musculoskeletal fatigue.",
+      scenarioContext:
+        "Dehydration cardio and EVA radiation can run together; turn each scenario off without clearing the others.",
     },
     lunar_base: {
       latencyLabel: "~2.6 s round-trip (south pole base)",
@@ -255,6 +313,25 @@ export const ENVIRONMENT_MISSION_META: Record<
       primaryHazards: ["radiation", "isolation", "closed_environment"],
       autonomyNote:
         "Artemis habitats run with link latency; offline-first monitoring enables action before ground sync.",
+      habitatName: "Artemis south-pole habitat",
+      operationsContext: "Long nights, air/water recycling, and extended indoor shifts.",
+      healthFocus: "Circadian sleep, closed-cabin immunity, and accumulated lunar dose.",
+      scenarioContext:
+        "Circadian drift and closed ecology amplify solar stress when several simulations are on.",
+    },
+    mars_base: {
+      latencyLabel: "8–22 min one-way (Mars)",
+      latencyMs: 18 * 60 * 1000,
+      primaryHazards: ["radiation", "distance", "isolation", "closed_environment"],
+      autonomyNote:
+        "Mars imposes minute-scale delay; crews rely on onboard medical officers and local HRP rules.",
+      habitatName: "Mars surface camp",
+      operationsContext:
+        "Low outdoor pressure, perchlorate dust, and non-synchronous Earth comms.",
+      healthFocus:
+        "GCR/SPE radiation, bone density at reduced gravity, and behavioral health in long confinement.",
+      scenarioContext:
+        "All three mission scenarios are plausible on Mars and may stay enabled at the same time.",
     },
   },
 };
@@ -506,6 +583,21 @@ export const UI_STRINGS = {
     skipToMain: "Ir al contenido principal",
     crewStatusLive: "Estado actual de la tripulación",
     simulationControls: "Simulaciones de misión",
+    scenarioActive: "Activo",
+    scenarioInactive: "Listo",
+    scenarioTapToDeactivate:
+      "Varios escenarios pueden estar activos a la vez. Pulsa de nuevo para apagar solo ese escenario.",
+    activeScenariosLabel: "Escenarios activos",
+    noActiveScenarios: "Ninguno",
+    crewRoster: "Tripulación simulada (API)",
+    selectAstronaut: "Seleccionar astronauta",
+    environmentBrief: "Contexto del entorno",
+    habitatLabel: "Hábitat",
+    operationsLabel: "Operaciones",
+    healthFocusLabel: "Foco de salud",
+    mockGroundFeed: "Feed simulado de control en Tierra (Faker API)",
+    mockGroundFeedConnected: "Sincronizado",
+    bodyRegionSelected: "Seleccionado",
     vitalsFileLabel: "Adjuntar imagen opcional",
     stressValueLabel: "Nivel de estrés seleccionado",
     relatedHazards: "Riesgos espaciales relacionados (NASA)",
@@ -585,6 +677,21 @@ export const UI_STRINGS = {
     skipToMain: "Skip to main content",
     crewStatusLive: "Current crew status",
     simulationControls: "Mission simulations",
+    scenarioActive: "Active",
+    scenarioInactive: "Ready",
+    scenarioTapToDeactivate:
+      "Multiple scenarios can run together. Tap again to turn off only that scenario.",
+    activeScenariosLabel: "Active scenarios",
+    noActiveScenarios: "None",
+    crewRoster: "Simulated crew (API)",
+    selectAstronaut: "Select astronaut",
+    environmentBrief: "Environment context",
+    habitatLabel: "Habitat",
+    operationsLabel: "Operations",
+    healthFocusLabel: "Health focus",
+    mockGroundFeed: "Mock ground-control feed (Faker API)",
+    mockGroundFeedConnected: "Synced",
+    bodyRegionSelected: "Selected",
     vitalsFileLabel: "Attach optional image",
     stressValueLabel: "Selected stress level",
     relatedHazards: "Related NASA spaceflight hazards",

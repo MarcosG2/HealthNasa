@@ -56,7 +56,9 @@ export function buildMockMissionHistory(
       glucose = 165;
     }
 
-    const radiationMsv = day >= 14 ? 0.85 : 0.35 + day * 0.03;
+    const envDoseBoost =
+      env === "mars_base" ? 0.12 : env === "spacecraft" ? 0.08 : env === "rover" ? 0.05 : 0;
+    const radiationMsv = day >= 14 ? 0.85 + envDoseBoost : 0.35 + day * 0.03 + envDoseBoost;
 
     days.push(
       entry(day, {

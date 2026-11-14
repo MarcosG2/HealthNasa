@@ -10,7 +10,8 @@ export type MissionEnvironment =
   | "spacecraft"
   | "station"
   | "rover"
-  | "lunar_base";
+  | "lunar_base"
+  | "mars_base";
 
 export type HealthStatus = "normal" | "warning" | "critical";
 
@@ -24,6 +25,29 @@ export type BodySystemStatus =
   | "neuro_behavioral"
   | "metabolic"
   | "immune_musculoskeletal";
+
+/** Demo mission scenario toggles in the dashboard simulation row */
+export type MissionScenarioId = "solar" | "cardio" | "isolation";
+
+export type AstronautHealthArchetype =
+  | "healthy"
+  | "cardio_warning"
+  | "radiation_exposure"
+  | "isolation_stress"
+  | "metabolic_drift"
+  | "multi_system_critical";
+
+export interface MockAstronautProfile {
+  id: string;
+  callSign: string;
+  fullName: string;
+  agency: string;
+  role: string;
+  archetype: AstronautHealthArchetype;
+  homeEnvironment: MissionEnvironment;
+  /** Optional demo scenarios that match this crew member's chart */
+  typicalScenarios: MissionScenarioId[];
+}
 
 export interface OfficialReferenceLink {
   label: string;
@@ -114,4 +138,8 @@ export interface EnvironmentMissionMeta {
   latencyMs: number;
   primaryHazards: SpaceflightHazard[];
   autonomyNote: string;
+  habitatName: string;
+  operationsContext: string;
+  healthFocus: string;
+  scenarioContext: string;
 }

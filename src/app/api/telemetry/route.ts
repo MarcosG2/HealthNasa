@@ -7,7 +7,8 @@ function parseEnvironment(value: string | null): MissionEnvironment {
     value === "station" ||
     value === "spacecraft" ||
     value === "rover" ||
-    value === "lunar_base"
+    value === "lunar_base" ||
+    value === "mars_base"
   ) {
     return value;
   }

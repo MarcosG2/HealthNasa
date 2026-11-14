@@ -10,7 +10,8 @@ function parseEnvironment(value: string | null): MissionEnvironment {
     value === "station" ||
     value === "spacecraft" ||
     value === "rover" ||
-    value === "lunar_base"
+    value === "lunar_base" ||
+    value === "mars_base"
   ) {
     return value;
   }
@@ -23,6 +24,7 @@ function simulateLatencyMs(environment: MissionEnvironment): number {
     spacecraft: 12 * 60 * 1000,
     rover: 2600,
     lunar_base: 2600,
+    mars_base: 18 * 60 * 1000,
   };
   return map[environment];
 }

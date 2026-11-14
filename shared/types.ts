@@ -17,4 +17,7 @@ export type {
   VitalsFormMetric,
   ExamThreshold,
   EnvironmentMissionMeta,
+  MissionScenarioId,
+  AstronautHealthArchetype,
+  MockAstronautProfile,
 } from "../src/types/health";

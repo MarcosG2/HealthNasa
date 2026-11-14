@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactElement } from "react";
+import { useEffect, useMemo, useState, type ReactElement } from "react";
 import {
   Area,
   AreaChart,
@@ -18,6 +18,7 @@ import { RADIATION_CHART_CAUTION_MSV } from "@/data/nasaKnowledge";
 import { buildMockMissionHistory } from "@/data/mockMissionHistory";
 import {
   ENVIRONMENT_LABELS,
+  ENVIRONMENT_MISSION_META,
   type AppLocale,
   UI_STRINGS,
 } from "@/lib/locale";
@@ -28,25 +29,35 @@ const ENVIRONMENT_IDS: MissionEnvironment[] = [
   "spacecraft",
   "rover",
   "lunar_base",
+  "mars_base",
 ];
 
 interface HealthChartsProps {
   history: VitalReadings[];
   locale?: AppLocale;
+  environment?: MissionEnvironment;
   onEnvironmentChange?: (env: MissionEnvironment) => void;
 }
 
 export function HealthCharts({
   history,
   locale = "es",
+  environment: environmentProp,
   onEnvironmentChange,
 }: HealthChartsProps) {
   const ui = UI_STRINGS[locale];
   const envLabels = ENVIRONMENT_LABELS[locale];
 
   const [environment, setEnvironment] = useState<MissionEnvironment>(
-    history[0]?.environment ?? "station"
+    environmentProp ?? history[0]?.environment ?? "station"
   );
+  const envMeta = ENVIRONMENT_MISSION_META[locale][environment];
+
+  useEffect(() => {
+    if (environmentProp && environmentProp !== environment) {
+      setEnvironment(environmentProp);
+    }
+  }, [environmentProp, environment]);
 
   const chartData = useMemo(() => {
     const filtered = history.filter((h) => h.environment === environment);
@@ -108,7 +119,24 @@ export function HealthCharts({
         aria-labelledby={`env-tab-${environment}`}
         className="space-y-6"
       >
-      <div className="card card-border bg-base-200/50 p-4">
+      <div className="mission-panel space-y-2 p-4 text-sm text-base-content/85">
+        <p className="mission-section-title text-base">{ui.environmentBrief}</p>
+        <p>
+          <span className="font-medium text-base-content">{ui.habitatLabel}: </span>
+          {envMeta.habitatName}
+        </p>
+        <p>
+          <span className="font-medium text-base-content">{ui.operationsLabel}: </span>
+          {envMeta.operationsContext}
+        </p>
+        <p>
+          <span className="font-medium text-base-content">{ui.healthFocusLabel}: </span>
+          {envMeta.healthFocus}
+        </p>
+        <p className="text-xs text-base-content/70">{envMeta.scenarioContext}</p>
+      </div>
+
+      <div className="mission-panel p-4">
         <h3 className="mb-3 text-sm font-medium">{ui.chartCardio}</h3>
         <ChartContainer>
           <LineChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
@@ -146,7 +174,7 @@ export function HealthCharts({
         </ChartContainer>
       </div>
 
-      <div className="card card-border bg-base-200/50 p-4">
+      <div className="mission-panel p-4">
         <h3 className="mb-3 text-sm font-medium">{ui.chartRecovery}</h3>
         <ChartContainer>
           <AreaChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
@@ -179,7 +207,7 @@ export function HealthCharts({
         </ChartContainer>
       </div>
 
-      <div className="card card-border bg-base-200/50 p-4">
+      <div className="mission-panel p-4">
         <h3 className="mb-3 text-sm font-medium">{ui.chartRadiation}</h3>
         <ChartContainer>
           <LineChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
