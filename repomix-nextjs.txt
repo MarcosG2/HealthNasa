@@ -1,0 +1,4905 @@
+This file is a merged representation of a subset of the codebase, containing files not matching ignore patterns, combined into a single document by Repomix.
+
+================================================================
+File Summary
+================================================================
+
+Purpose:
+--------
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+
+File Format:
+------------
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  a. A separator line (================)
+  b. The file path (File: path/to/file)
+  c. Another separator line
+  d. The full contents of the file
+  e. A blank line
+
+Usage Guidelines:
+-----------------
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+
+Notes:
+------
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching these patterns are excluded: node_modules/**, .next/**, out/**, build/**, dist/**, coverage/**, .turbo/**, .vercel/**, .cache/**, .git/**, playwright-report/**, test-results/**, *.log, **/*.log, *.tsbuildinfo, repomix-nextjs.txt, .env*, **/.env*, **/secrets/**, **/*.pem, **/*.key, **/*.p12, **/*.pfx
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+
+
+================================================================
+Directory Structure
+================================================================
+.cursor/
+  rules/
+    nasa-space-apps-pmv.mdc
+.impeccable/
+  surfaces/
+    src-app-page.md
+public/
+  file.svg
+  globe.svg
+  next.svg
+  vercel.svg
+  window.svg
+shared/
+  types.ts
+src/
+  app/
+    api/
+      health-log/
+        route.ts
+      mission-feed/
+        roster/
+          route.ts
+        route.ts
+      telemetry/
+        route.ts
+    favicon.ico
+    globals.css
+    layout.tsx
+    page.tsx
+  data/
+    astronautRoster.ts
+    mockMissionHistory.ts
+    nasaKnowledge.ts
+  features/
+    body-map/
+      BodyMap.tsx
+      BodyMuscleChart.tsx
+      buildBodyMuscleState.ts
+    dashboard/
+      MissionDashboard.tsx
+    rules-engine/
+      evaluateHealth.ts
+    timeline/
+      HealthCharts.tsx
+    vitals-form/
+      MissionRoutinePanel.tsx
+      VitalsInputForm.tsx
+  lib/
+    fakerMissionTelemetry.ts
+    fetchMissionFeed.ts
+    locale.ts
+    mergeMissionScenarios.ts
+    missionScenarios.ts
+    statusColors.ts
+  types/
+    health.ts
+.cursorrules
+.gitignore
+eslint.config.mjs
+next.config.ts
+package.json
+PRODUCT.md
+README.md
+tsconfig.json
+
+================================================================
+Files
+================================================================
+
+================
+File: .impeccable/surfaces/src-app-page.md
+================
+# Surface: Mission dashboard (`src/app/page.tsx`)
+
+Mode: **Operate** — crew completes health check-in and reads mission status.
+
+## Direction contract
+
+**THESIS:** One continuous medical telemetry board—not a stack of equal cards. Status and mission day read like a flight surgeon console; sections are framed panels on a void field.
+
+**OWN-WORLD:** Near-black void ground, fine 24px grid, mission cyan (`primary`) for navigation and selection, monospace numerals for metrics. Panels are single hairline frames with inset label tabs (no nested cards, no left accent bars).
+
+**STORY:** Arrive → see crew status headline → scan hazards and day → run sim if demoing → read body systems and actions → log vitals.
+
+**FIRST VIEWPORT:** Full-width command bar (title left, locale + live status right). Below: three inline metric fields (profile, latency, hazards) + autonomy note strip. Main opens with simulation row then body map vs guidance split.
+
+**FORM:** Code-led replacement world; challenger inspiration — printed NASA medical log sheets and CRT telemetry — not generic slate dashboard templates.
+
+**SEED REFERENCE:** seed: none (unavailable)
+
+**FINISH:** unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance.
+
+================
+File: PRODUCT.md
+================
+# Product
+
+<!-- impeccable:product-schema 1 -->
+
+## Platform
+
+web
+
+## Stack
+
+Next.js App Router, TypeScript, Tailwind CSS, daisyUI, lucide-react, recharts. Inferred from repository (NASA Space Apps 48h PMV).
+
+## Users
+
+Crew members and flight surgeons evaluating astronaut health during Artemis-style missions when ground support is delayed or unavailable. Secondary: judges and demo viewers at NASA Space Apps.
+
+## Product Purpose
+
+Offline-first mission health monitoring: log vitals, see body-system status, trends, and NASA HRP–inspired guidance without blocking on the network.
+
+## Positioning
+
+Clinical evaluation runs deterministically in the browser via `evaluateHealth()`; optional API sync does not gate the UX.
+
+## Operating Context
+
+Long-duration missions across station, spacecraft, rover, and lunar base environments with different latency and hazard profiles. Daily check-ins, scenario simulations for demos, bilingual ES/EN UI.
+
+## Capabilities and Constraints
+
+- Vitals form with streak and routine checklist; body map; timeline charts; rule engine; mock mission history and localStorage persistence.
+- Semaphore statuses: normal / warning / critical (emerald, amber, rose).
+- No fabricated NASA endorsements; educational copy from project data files.
+
+## Brand Commitments
+
+Product name in metadata: "Mission Health Control | NASA Space Apps". Dark mission-control aesthetic; clear simple English (with Spanish locale toggle).
+
+## Evidence on Hand
+
+Mock mission data (`src/data/mockMissionHistory.ts`), NASA hazard knowledge (`src/data/nasaKnowledge.ts`), no live crew telemetry.
+
+## Product Principles
+
+1. Offline-first for critical evaluation.
+2. Types from `src/types/health.ts` as contract.
+3. Explain why each measurement matters in space.
+4. Lightweight stack—no heavy 3D or realtime DB for PMV.
+
+## Accessibility & Inclusion
+
+Skip link, live regions for status, keyboard-navigable body regions, focus-visible styling.
+
+================
+File: .cursor/rules/nasa-space-apps-pmv.mdc
+================
+---
+description: NASA Space Apps PMV — stack, arquitectura y reglas de 48h
+alwaysApply: true
+---
+
+# NASA Space Apps PMV (48h)
+
+Eres un ingeniero de software senior construyendo un PMV para NASA Space Apps en 48 horas.
+
+## Reglas estrictas
+
+1. **Lenguaje**: TypeScript estricto. UI en **inglés** (evaluación internacional) con textos simples y claros.
+
+2. **Fuente de verdad**: **SIEMPRE** importa tipos desde `shared/types.ts`. Nunca inventes propiedades nuevas sin actualizar ese archivo.
+
+3. **Arquitectura**: Feature-based. Cada desarrollador trabaja solo dentro de su carpeta en `src/features/`.
+
+4. **Offline-first**: Toda evaluación clínica crítica debe funcionar en el cliente con reglas determinísticas basadas en NASA HRP. No dependas de llamadas externas bloqueantes.
+
+5. **UI**: Tailwind CSS. Semáforo estándar: `normal` (emerald), `warning` (amber), `critical` (rose).
+
+6. **Dependencias**: No instales paquetes nuevos pesados sin justificación. Prioriza componentes simples, modulares y testeables.
+
+================
+File: public/file.svg
+================
+<svg fill="none" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path d="M14.5 13.5V5.41a1 1 0 0 0-.3-.7L9.8.29A1 1 0 0 0 9.08 0H1.5v13.5A2.5 2.5 0 0 0 4 16h8a2.5 2.5 0 0 0 2.5-2.5m-1.5 0v-7H8v-5H3v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1M9.5 5V2.12L12.38 5zM5.13 5h-.62v1.25h2.12V5zm-.62 3h7.12v1.25H4.5zm.62 3h-.62v1.25h7.12V11z" clip-rule="evenodd" fill="#666" fill-rule="evenodd"/></svg>
+
+================
+File: public/globe.svg
+================
+<svg fill="none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><g clip-path="url(#a)"><path fill-rule="evenodd" clip-rule="evenodd" d="M10.27 14.1a6.5 6.5 0 0 0 3.67-3.45q-1.24.21-2.7.34-.31 1.83-.97 3.1M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16m.48-1.52a7 7 0 0 1-.96 0H7.5a4 4 0 0 1-.84-1.32q-.38-.89-.63-2.08a40 40 0 0 0 3.92 0q-.25 1.2-.63 2.08a4 4 0 0 1-.84 1.31zm2.94-4.76q1.66-.15 2.95-.43a7 7 0 0 0 0-2.58q-1.3-.27-2.95-.43a18 18 0 0 1 0 3.44m-1.27-3.54a17 17 0 0 1 0 3.64 39 39 0 0 1-4.3 0 17 17 0 0 1 0-3.64 39 39 0 0 1 4.3 0m1.1-1.17q1.45.13 2.69.34a6.5 6.5 0 0 0-3.67-3.44q.65 1.26.98 3.1M8.48 1.5l.01.02q.41.37.84 1.31.38.89.63 2.08a40 40 0 0 0-3.92 0q.25-1.2.63-2.08a4 4 0 0 1 .85-1.32 7 7 0 0 1 .96 0m-2.75.4a6.5 6.5 0 0 0-3.67 3.44 29 29 0 0 1 2.7-.34q.31-1.83.97-3.1M4.58 6.28q-1.66.16-2.95.43a7 7 0 0 0 0 2.58q1.3.27 2.95.43a18 18 0 0 1 0-3.44m.17 4.71q-1.45-.12-2.69-.34a6.5 6.5 0 0 0 3.67 3.44q-.65-1.27-.98-3.1" fill="#666"/></g><defs><clipPath id="a"><path fill="#fff" d="M0 0h16v16H0z"/></clipPath></defs></svg>
+
+================
+File: public/next.svg
+================
+<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 394 80"><path fill="#000" d="M262 0h68.5v12.7h-27.2v66.6h-13.6V12.7H262V0ZM149 0v12.7H94v20.4h44.3v12.6H94v21h55v12.6H80.5V0h68.7zm34.3 0h-17.8l63.8 79.4h17.9l-32-39.7 32-39.6h-17.9l-23 28.6-23-28.6zm18.3 56.7-9-11-27.1 33.7h17.8l18.3-22.7z"/><path fill="#000" d="M81 79.3 17 0H0v79.3h13.6V17l50.2 62.3H81Zm252.6-.4c-1 0-1.8-.4-2.5-1s-1.1-1.6-1.1-2.6.3-1.8 1-2.5 1.6-1 2.6-1 1.8.3 2.5 1a3.4 3.4 0 0 1 .6 4.3 3.7 3.7 0 0 1-3 1.8zm23.2-33.5h6v23.3c0 2.1-.4 4-1.3 5.5a9.1 9.1 0 0 1-3.8 3.5c-1.6.8-3.5 1.3-5.7 1.3-2 0-3.7-.4-5.3-1s-2.8-1.8-3.7-3.2c-.9-1.3-1.4-3-1.4-5h6c.1.8.3 1.6.7 2.2s1 1.2 1.6 1.5c.7.4 1.5.5 2.4.5 1 0 1.8-.2 2.4-.6a4 4 0 0 0 1.6-1.8c.3-.8.5-1.8.5-3V45.5zm30.9 9.1a4.4 4.4 0 0 0-2-3.3 7.5 7.5 0 0 0-4.3-1.1c-1.3 0-2.4.2-3.3.5-.9.4-1.6 1-2 1.6a3.5 3.5 0 0 0-.3 4c.3.5.7.9 1.3 1.2l1.8 1 2 .5 3.2.8c1.3.3 2.5.7 3.7 1.2a13 13 0 0 1 3.2 1.8 8.1 8.1 0 0 1 3 6.5c0 2-.5 3.7-1.5 5.1a10 10 0 0 1-4.4 3.5c-1.8.8-4.1 1.2-6.8 1.2-2.6 0-4.9-.4-6.8-1.2-2-.8-3.4-2-4.5-3.5a10 10 0 0 1-1.7-5.6h6a5 5 0 0 0 3.5 4.6c1 .4 2.2.6 3.4.6 1.3 0 2.5-.2 3.5-.6 1-.4 1.8-1 2.4-1.7a4 4 0 0 0 .8-2.4c0-.9-.2-1.6-.7-2.2a11 11 0 0 0-2.1-1.4l-3.2-1-3.8-1c-2.8-.7-5-1.7-6.6-3.2a7.2 7.2 0 0 1-2.4-5.7 8 8 0 0 1 1.7-5 10 10 0 0 1 4.3-3.5c2-.8 4-1.2 6.4-1.2 2.3 0 4.4.4 6.2 1.2 1.8.8 3.2 2 4.3 3.4 1 1.4 1.5 3 1.5 5h-5.8z"/></svg>
+
+================
+File: public/vercel.svg
+================
+<svg fill="none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1155 1000"><path d="m577.3 0 577.4 1000H0z" fill="#fff"/></svg>
+
+================
+File: public/window.svg
+================
+<svg fill="none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path fill-rule="evenodd" clip-rule="evenodd" d="M1.5 2.5h13v10a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1zM0 1h16v11.5a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 0 12.5zm3.75 4.5a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5M7 4.75a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0m1.75.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5" fill="#666"/></svg>
+
+================
+File: src/app/api/mission-feed/roster/route.ts
+================
+import { NextResponse } from "next/server";
+import { ASTRONAUT_ROSTER, archetypeLabel } from "@/data/astronautRoster";
+
+export async function GET() {
+  const roster = ASTRONAUT_ROSTER.map((entry) => ({
+    ...entry,
+    statusLabelEs: archetypeLabel(entry.archetype, "es"),
+    statusLabelEn: archetypeLabel(entry.archetype, "en"),
+  }));
+
+  return NextResponse.json({
+    ok: true,
+    count: roster.length,
+    roster,
+    note: "Fictional multi-crew roster for demo ground API.",
+  });
+}
+
+================
+File: src/app/api/mission-feed/route.ts
+================
+import { NextResponse } from "next/server";
+import { buildFakerMissionFeed } from "@/lib/fakerMissionTelemetry";
+import type { MissionEnvironment } from "@/types/health";
+
+function parseEnvironment(value: string | null): MissionEnvironment {
+  if (
+    value === "station" ||
+    value === "spacecraft" ||
+    value === "rover" ||
+    value === "lunar_base" ||
+    value === "mars_base"
+  ) {
+    return value;
+  }
+  return "station";
+}
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const environment = parseEnvironment(searchParams.get("environment"));
+  const days = Math.min(
+    30,
+    Math.max(1, parseInt(searchParams.get("days") ?? "14", 10) || 14)
+  );
+  const seed = searchParams.get("seed") ?? undefined;
+  const astronautId = searchParams.get("astronautId") ?? undefined;
+
+  const feed = buildFakerMissionFeed(environment, days, seed, astronautId);
+
+  return NextResponse.json({
+    ok: true,
+    source: "faker_mock_ground_api",
+    ...feed,
+    note: "Fictional ground API for demo sync; evaluateHealth() still runs fully on-device.",
+  });
+}
+
+================
+File: src/app/page.tsx
+================
+import { MissionDashboard } from "@/features/dashboard/MissionDashboard";
+
+export default function Home() {
+  return <MissionDashboard />;
+}
+
+================
+File: src/data/astronautRoster.ts
+================
+import type {
+  AstronautHealthArchetype,
+  MockAstronautProfile,
+  MissionScenarioId,
+  VitalReadings,
+} from "@/types/health";
+
+export const ASTRONAUT_ROSTER: MockAstronautProfile[] = [
+  {
+    id: "eva-chen",
+    callSign: "Starwalker-1",
+    fullName: "Dr. Mei Chen",
+    agency: "NASA",
+    role: "ISS Commander",
+    archetype: "healthy",
+    homeEnvironment: "station",
+    typicalScenarios: [],
+  },
+  {
+    id: "luna-okafor",
+    callSign: "Southpole-7",
+    fullName: "Amara Okafor",
+    agency: "CSA",
+    role: "Lunar habitat engineer",
+    archetype: "healthy",
+    homeEnvironment: "lunar_base",
+    typicalScenarios: [],
+  },
+  {
+    id: "rover-torres",
+    callSign: "Dustline-3",
+    fullName: "Isabel Torres",
+    agency: "ESA",
+    role: "Lunar rover driver",
+    archetype: "isolation_stress",
+    homeEnvironment: "rover",
+    typicalScenarios: ["isolation"],
+  },
+  {
+    id: "mars-patel",
+    callSign: "Olympus-2",
+    fullName: "Ravi Patel",
+    agency: "NASA",
+    role: "Mars base geologist",
+    archetype: "radiation_exposure",
+    homeEnvironment: "mars_base",
+    typicalScenarios: ["solar"],
+  },
+  {
+    id: "cardio-sato",
+    callSign: "Gateway-9",
+    fullName: "Kenji Sato",
+    agency: "JAXA",
+    role: "Flight surgeon",
+    archetype: "cardio_warning",
+    homeEnvironment: "station",
+    typicalScenarios: ["cardio"],
+  },
+  {
+    id: "transit-berg",
+    callSign: "Voidrunner",
+    fullName: "Ingrid Berg",
+    agency: "ESA",
+    role: "Deep-space pilot",
+    archetype: "isolation_stress",
+    homeEnvironment: "spacecraft",
+    typicalScenarios: ["isolation", "solar"],
+  },
+  {
+    id: "metabolic-roy",
+    callSign: "Artemis-412",
+    fullName: "Camille Roy",
+    agency: "CSA",
+    role: "Life-support officer",
+    archetype: "metabolic_drift",
+    homeEnvironment: "lunar_base",
+    typicalScenarios: ["cardio"],
+  },
+  {
+    id: "compound-alvarez",
+    callSign: "Redline-1",
+    fullName: "Diego Álvarez",
+    agency: "NASA",
+    role: "Mars EVA lead",
+    archetype: "multi_system_critical",
+    homeEnvironment: "mars_base",
+    typicalScenarios: ["solar", "cardio", "isolation"],
+  },
+  {
+    id: "healthy-mars-lee",
+    callSign: "Hellas-5",
+    fullName: "Jordan Lee",
+    agency: "NASA",
+    role: "Mars botanist",
+    archetype: "healthy",
+    homeEnvironment: "mars_base",
+    typicalScenarios: [],
+  },
+  {
+    id: "rover-healthy-kim",
+    callSign: "Rille-8",
+    fullName: "Hana Kim",
+    agency: "JAXA",
+    role: "Rover systems",
+    archetype: "healthy",
+    homeEnvironment: "rover",
+    typicalScenarios: [],
+  },
+];
+
+export function getAstronautById(id: string): MockAstronautProfile | undefined {
+  return ASTRONAUT_ROSTER.find((a) => a.id === id);
+}
+
+const ARCHETYPE_LABEL: Record<
+  AstronautHealthArchetype,
+  { es: string; en: string }
+> = {
+  healthy: { es: "En rango", en: "Within range" },
+  cardio_warning: { es: "Alerta cardiovascular", en: "Cardiovascular alert" },
+  radiation_exposure: { es: "Radiación elevada", en: "Elevated radiation" },
+  isolation_stress: { es: "Estrés / aislamiento", en: "Isolation stress" },
+  metabolic_drift: { es: "Deriva metabólica", en: "Metabolic drift" },
+  multi_system_critical: { es: "Multisistema crítico", en: "Multi-system critical" },
+};
+
+export function archetypeLabel(
+  archetype: AstronautHealthArchetype,
+  locale: "es" | "en"
+): string {
+  return ARCHETYPE_LABEL[archetype][locale];
+}
+
+/** Shape telemetry to match roster archetype (last missions days). */
+export function applyAstronautArchetype(
+  telemetry: VitalReadings[],
+  archetype: AstronautHealthArchetype,
+  typicalScenarios: MissionScenarioId[]
+): VitalReadings[] {
+  if (telemetry.length === 0) return telemetry;
+  const rows = telemetry.map((r) => ({ ...r }));
+  const last = rows[rows.length - 1];
+  const prev = rows.length > 1 ? rows[rows.length - 2] : last;
+
+  switch (archetype) {
+    case "healthy":
+      last.systolicBP = Math.min(last.systolicBP, 122);
+      last.heartRate = Math.min(last.heartRate, 78);
+      last.stressLevel = Math.min(last.stressLevel ?? 5, 4);
+      break;
+    case "cardio_warning":
+      last.systolicBP = 152;
+      last.diastolicBP = 96;
+      last.heartRate = 108;
+      prev.systolicBP = 138;
+      break;
+    case "radiation_exposure":
+      last.radiationMsv = 1.35;
+      prev.radiationMsv = 0.95;
+      last.heartRate = Math.max(last.heartRate, 96);
+      last.extraMetrics = { ...last.extraMetrics, fatigueLevel: "elevated" };
+      break;
+    case "isolation_stress":
+      last.sleepHours = 4.2;
+      last.moodScore = 2;
+      last.stressLevel = 8;
+      last.extraMetrics = { ...last.extraMetrics, reactionTimeMs: 520 };
+      break;
+    case "metabolic_drift":
+      last.bloodSugar = 158;
+      last.temperature = 37.4;
+      prev.bloodSugar = 132;
+      break;
+    case "multi_system_critical":
+      last.systolicBP = 168;
+      last.heartRate = 118;
+      last.radiationMsv = 1.6;
+      last.sleepHours = 3.5;
+      last.stressLevel = 9;
+      last.moodScore = 1;
+      last.extraMetrics = {
+        fatigueLevel: "elevated",
+        reactionTimeMs: 580,
+      };
+      break;
+  }
+
+  last.extraMetrics = {
+    ...last.extraMetrics,
+    rosterArchetype: archetype,
+    typicalScenarios: typicalScenarios.join(","),
+  };
+
+  return rows;
+}
+
+================
+File: src/features/body-map/BodyMuscleChart.tsx
+================
+"use client";
+
+import { useEffect, useRef, type CSSProperties } from "react";
+import {
+  BodyChart,
+  ViewSide,
+  type BodyState,
+  type MuscleId,
+} from "@emmorts/body-muscles";
+
+interface BodyMuscleChartProps {
+  bodyState: BodyState;
+  ariaLabel: string;
+  onMuscleActivate: (id: MuscleId) => void;
+}
+
+function resolveHealthIntensityColor(intensity: number): string {
+  if (intensity >= 8) return "#fb7185";
+  if (intensity >= 5) return "#fbbf24";
+  if (intensity >= 1) return "#34d399";
+  return "#334155";
+}
+
+export function BodyMuscleChart({
+  bodyState,
+  ariaLabel,
+  onMuscleActivate,
+}: BodyMuscleChartProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const chartRef = useRef<BodyChart | null>(null);
+  const onActivateRef = useRef(onMuscleActivate);
+
+  useEffect(() => {
+    onActivateRef.current = onMuscleActivate;
+  }, [onMuscleActivate]);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    chartRef.current = new BodyChart(el, {
+      view: ViewSide.FRONT,
+      bodyState,
+      ariaLabel,
+      showViewLabel: false,
+      intensityColor: (value) => resolveHealthIntensityColor(value),
+      className: "body-muscles-mission",
+      onMuscleClick(id) {
+        onActivateRef.current(id);
+      },
+    });
+
+    return () => {
+      chartRef.current?.destroy();
+      chartRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount once; state via update()
+  }, [ariaLabel]);
+
+  useEffect(() => {
+    chartRef.current?.update({ bodyState });
+  }, [bodyState]);
+
+  return (
+    <div
+      ref={containerRef}
+      className="body-muscles-mission mx-auto w-full max-w-md [&_.body-muscles-mission]:min-h-[300px]"
+      style={
+        {
+          "--bm-max-height": "340px",
+          "--bm-region-stroke": "#475569",
+          "--bm-region-stroke-selected": "#f8fafc",
+          "--bm-region-inactive-opacity": "0.45",
+          "--bm-tooltip-bg": "rgb(15 23 42 / 0.95)",
+        } as CSSProperties
+      }
+    />
+  );
+}
+
+================
+File: src/features/body-map/buildBodyMuscleState.ts
+================
+import { MUSCLE_GROUPS, type MuscleGroup } from "@emmorts/body-muscles";
+import type { BodyState, MuscleId } from "@emmorts/body-muscles";
+import type { BodySystemStatus, HealthStatus, SystemStatusEntry } from "@/types/health";
+
+const SYSTEM_GROUPS: Record<BodySystemStatus, MuscleGroup[]> = {
+  neuro_behavioral: ["Head & Neck"],
+  cardiovascular: ["Chest"],
+  metabolic: ["Abdominals"],
+  immune_musculoskeletal: ["Arms", "Legs", "Back", "Shoulders"],
+};
+
+const MUSCLE_TO_SYSTEM = new Map<MuscleId, BodySystemStatus>();
+
+for (const [system, groups] of Object.entries(SYSTEM_GROUPS) as [
+  BodySystemStatus,
+  MuscleGroup[],
+][]) {
+  for (const group of groups) {
+    for (const muscleId of MUSCLE_GROUPS[group]) {
+      MUSCLE_TO_SYSTEM.set(muscleId, system);
+    }
+  }
+}
+
+export function muscleIdToBodySystem(id: MuscleId): BodySystemStatus | null {
+  return MUSCLE_TO_SYSTEM.get(id) ?? null;
+}
+
+function statusToIntensity(status: HealthStatus): number {
+  if (status === "critical") return 9;
+  if (status === "warning") return 6;
+  return 2;
+}
+
+export function buildBodyMuscleState(
+  systemStatuses: SystemStatusEntry[],
+  selectedSystem: BodySystemStatus
+): BodyState {
+  const statusBySystem = new Map<BodySystemStatus, HealthStatus>();
+  for (const entry of systemStatuses) {
+    statusBySystem.set(entry.system, entry.status);
+  }
+
+  const state: BodyState = {};
+  for (const system of Object.keys(SYSTEM_GROUPS) as BodySystemStatus[]) {
+    const intensity = statusToIntensity(statusBySystem.get(system) ?? "normal");
+    const selected = system === selectedSystem;
+    for (const group of SYSTEM_GROUPS[system]) {
+      for (const muscleId of MUSCLE_GROUPS[group]) {
+        state[muscleId] = { intensity, selected };
+      }
+    }
+  }
+  return state;
+}
+
+================
+File: src/lib/fakerMissionTelemetry.ts
+================
+import { faker } from "@faker-js/faker";
+import {
+  applyAstronautArchetype,
+  getAstronautById,
+  ASTRONAUT_ROSTER,
+} from "@/data/astronautRoster";
+import { buildMockMissionHistory } from "@/data/mockMissionHistory";
+import type {
+  MissionEnvironment,
+  MockAstronautProfile,
+  VitalReadings,
+} from "@/types/health";
+
+export interface MockGroundCrew {
+  callSign: string;
+  commander: string;
+  medicalOfficer: string;
+  agency: string;
+  habitatModule: string;
+  astronautId?: string;
+  archetype?: MockAstronautProfile["archetype"];
+}
+
+export interface FakerMissionFeed {
+  feedId: string;
+  generatedAt: string;
+  environment: MissionEnvironment;
+  days: number;
+  crew: MockGroundCrew;
+  signalLatencyMs: number;
+  telemetry: VitalReadings[];
+  rosterSize: number;
+}
+
+function seedFromString(value: string): number {
+  let hash = 0;
+  for (let i = 0; i < value.length; i++) {
+    hash = (hash << 5) - hash + value.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
+const LATENCY_MS: Record<MissionEnvironment, number> = {
+  station: 500,
+  spacecraft: 12 * 60 * 1000,
+  rover: 2600,
+  lunar_base: 2600,
+  mars_base: 18 * 60 * 1000,
+};
+
+const HABITAT_BY_ENV: Record<MissionEnvironment, string[]> = {
+  station: ["ISS USOS", "Columbus", "Kibo"],
+  spacecraft: ["Orion CM", "Deep Space Transport", "Gateway HALO"],
+  rover: ["Artemis LTV", "PRESS Lunar Rover", "Mars Science Rover"],
+  lunar_base: ["Artemis South Pole Habitat", "Lunar Gateway Logistics"],
+  mars_base: ["Mars Ice Home", "Olympus Mons Camp", "Hellas Planitia Lab"],
+};
+
+/** Server-only synthetic ground feed — seeds Faker, layers noise on HRP-shaped baselines. */
+export function buildFakerMissionFeed(
+  environment: MissionEnvironment,
+  days: number,
+  seed?: string,
+  astronautId?: string
+): FakerMissionFeed {
+  const rosterEntry = astronautId ? getAstronautById(astronautId) : undefined;
+  const env = rosterEntry?.homeEnvironment ?? environment;
+  const seedValue = seed ?? `${astronautId ?? env}-${days}`;
+  faker.seed(seedFromString(seedValue));
+
+  let baseline = buildMockMissionHistory(env).slice(0, days).map((row) => ({
+    ...row,
+    environment: env,
+    systolicBP: row.systolicBP + faker.number.int({ min: -3, max: 3 }),
+    diastolicBP: row.diastolicBP + faker.number.int({ min: -2, max: 2 }),
+    heartRate: row.heartRate + faker.number.int({ min: -4, max: 4 }),
+    bloodSugar: row.bloodSugar + faker.number.int({ min: -5, max: 5 }),
+    temperature:
+      Math.round((row.temperature + faker.number.float({ min: -0.15, max: 0.15 })) * 10) /
+      10,
+    sleepHours:
+      Math.round((row.sleepHours + faker.number.float({ min: -0.3, max: 0.3 })) * 10) / 10,
+    recordedAt: row.recordedAt,
+  }));
+
+  if (rosterEntry) {
+    baseline = applyAstronautArchetype(
+      baseline,
+      rosterEntry.archetype,
+      rosterEntry.typicalScenarios
+    );
+    const last = baseline[baseline.length - 1];
+    if (last) {
+      last.extraMetrics = {
+        ...last.extraMetrics,
+        astronautId: rosterEntry.id,
+      };
+    }
+  }
+
+  const crewName = rosterEntry?.fullName ?? faker.person.fullName();
+  const callSign = rosterEntry?.callSign ?? `Artemis-${faker.number.int({ min: 410, max: 420 })}`;
+
+  return {
+    feedId: faker.string.uuid(),
+    generatedAt: new Date().toISOString(),
+    environment: env,
+    days,
+    signalLatencyMs: LATENCY_MS[env],
+    rosterSize: ASTRONAUT_ROSTER.length,
+    crew: {
+      callSign,
+      commander: crewName,
+      medicalOfficer: rosterEntry?.role ?? faker.person.fullName(),
+      agency: rosterEntry?.agency ?? faker.helpers.arrayElement(["NASA", "CSA", "ESA", "JAXA"]),
+      habitatModule: faker.helpers.arrayElement(HABITAT_BY_ENV[env]),
+      astronautId: rosterEntry?.id,
+      archetype: rosterEntry?.archetype,
+    },
+    telemetry: baseline,
+  };
+}
+
+export function listRosterForApi(): MockAstronautProfile[] {
+  return ASTRONAUT_ROSTER;
+}
+
+================
+File: src/lib/fetchMissionFeed.ts
+================
+import type { FakerMissionFeed } from "@/lib/fakerMissionTelemetry";
+import type { MissionEnvironment } from "@/types/health";
+
+export interface MissionFeedResponse extends FakerMissionFeed {
+  ok: boolean;
+  source: string;
+  note: string;
+}
+
+export async function fetchMissionFeed(
+  environment: MissionEnvironment,
+  days = 14,
+  astronautId?: string
+): Promise<MissionFeedResponse | null> {
+  try {
+    const params = new URLSearchParams({
+      environment,
+      days: String(days),
+    });
+    if (astronautId) params.set("astronautId", astronautId);
+    const res = await fetch(`/api/mission-feed?${params.toString()}`, {
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as MissionFeedResponse;
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchAstronautRoster(): Promise<
+  import("@/types/health").MockAstronautProfile[] | null
+> {
+  try {
+    const res = await fetch("/api/mission-feed/roster", { cache: "no-store" });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { roster?: import("@/types/health").MockAstronautProfile[] };
+    return data.roster ?? null;
+  } catch {
+    return null;
+  }
+}
+
+================
+File: src/lib/mergeMissionScenarios.ts
+================
+import {
+  cardioDehydrationScenario,
+  isolationDriftScenario,
+  solarParticleScenario,
+} from "@/data/mockMissionHistory";
+import type { MissionEnvironment, MissionScenarioId, VitalReadings } from "@/types/health";
+
+export const SCENARIO_APPLY_ORDER: MissionScenarioId[] = [
+  "solar",
+  "cardio",
+  "isolation",
+];
+
+function scenarioFactory(
+  id: MissionScenarioId
+): (environment: MissionEnvironment) => VitalReadings {
+  switch (id) {
+    case "solar":
+      return solarParticleScenario;
+    case "cardio":
+      return cardioDehydrationScenario;
+    case "isolation":
+      return isolationDriftScenario;
+  }
+}
+
+function mergeVitalPair(base: VitalReadings, patch: VitalReadings): VitalReadings {
+  return {
+    ...base,
+    systolicBP: Math.max(base.systolicBP, patch.systolicBP),
+    diastolicBP: Math.max(base.diastolicBP, patch.diastolicBP),
+    heartRate: Math.max(base.heartRate, patch.heartRate),
+    bloodSugar: Math.max(base.bloodSugar, patch.bloodSugar),
+    temperature: Math.max(base.temperature, patch.temperature),
+    radiationMsv: Math.max(base.radiationMsv ?? 0, patch.radiationMsv ?? 0),
+    sleepHours: Math.min(base.sleepHours, patch.sleepHours),
+    moodScore: Math.min(base.moodScore, patch.moodScore),
+    stressLevel: Math.max(base.stressLevel ?? 0, patch.stressLevel ?? 0),
+    extraMetrics: { ...base.extraMetrics, ...patch.extraMetrics },
+  };
+}
+
+/** Layer one or more mission scenarios onto a baseline reading (same mission day). */
+export function mergeActiveScenarios(
+  baseline: VitalReadings,
+  active: MissionScenarioId[],
+  environment: MissionEnvironment
+): VitalReadings {
+  let merged: VitalReadings = { ...baseline, environment };
+  for (const id of SCENARIO_APPLY_ORDER) {
+    if (!active.includes(id)) continue;
+    const scenarioSample = scenarioFactory(id)(environment);
+    merged = mergeVitalPair(merged, scenarioSample);
+  }
+  return {
+    ...merged,
+    missionDay: baseline.missionDay,
+    environment,
+    extraMetrics: {
+      ...merged.extraMetrics,
+      activeScenarios: active.join(","),
+    },
+  };
+}
+
+================
+File: src/lib/missionScenarios.ts
+================
+import type { MissionScenarioId, VitalReadings } from "@/types/health";
+
+function hasSolarSignature(reading: VitalReadings): boolean {
+  return (
+    (reading.radiationMsv ?? 0) >= 1.4 &&
+    reading.heartRate >= 100 &&
+    (reading.extraMetrics?.fatigueLevel === "elevated" ||
+      (reading.sleepHours ?? 8) < 6)
+  );
+}
+
+function hasCardioSignature(reading: VitalReadings): boolean {
+  return reading.systolicBP >= 155 && reading.heartRate >= 115;
+}
+
+function hasIsolationSignature(reading: VitalReadings): boolean {
+  return (
+    reading.sleepHours <= 4.5 &&
+    (reading.stressLevel ?? 0) >= 7 &&
+    (reading.moodScore ?? 5) <= 3
+  );
+}
+
+export function detectMissionScenarios(reading: VitalReadings): MissionScenarioId[] {
+  const active: MissionScenarioId[] = [];
+  if (hasSolarSignature(reading)) active.push("solar");
+  if (hasCardioSignature(reading)) active.push("cardio");
+  if (hasIsolationSignature(reading)) active.push("isolation");
+  return active;
+}
+
+/** @deprecated Use detectMissionScenarios */
+export function detectMissionScenario(reading: VitalReadings): MissionScenarioId | null {
+  const list = detectMissionScenarios(reading);
+  return list[0] ?? null;
+}
+
+================
+File: src/lib/statusColors.ts
+================
+import type { HealthStatus } from "@/types/health";
+
+const STATUS_STYLES: Record<
+  HealthStatus,
+  { text: string; bg: string; ring: string; dot: string }
+> = {
+  normal: {
+    text: "text-emerald-400",
+    bg: "bg-emerald-500/15",
+    ring: "ring-emerald-500/40",
+    dot: "bg-emerald-500",
+  },
+  warning: {
+    text: "text-amber-400",
+    bg: "bg-amber-500/15",
+    ring: "ring-amber-500/40",
+    dot: "bg-amber-500",
+  },
+  critical: {
+    text: "text-rose-400",
+    bg: "bg-rose-500/15",
+    ring: "ring-rose-500/40",
+    dot: "bg-rose-500",
+  },
+};
+
+export function statusStyles(status: HealthStatus) {
+  return STATUS_STYLES[status];
+}
+
+export function statusLabel(status: HealthStatus): string {
+  const labels: Record<HealthStatus, string> = {
+    normal: "Normal",
+    warning: "Needs attention",
+    critical: "Critical",
+  };
+  return labels[status];
+}
+
+================
+File: .cursorrules
+================
+# NASA Space Apps — Health Monitoring MVP (48h team conventions)
+
+## Team structure (3 developers)
+
+Work inside **your** feature folder only. Do not edit another dev's feature folder without coordination.
+
+| Developer | Folder | Responsibility |
+|-----------|--------|----------------|
+| Dev 1 | `src/features/body-map/`, `src/features/timeline/` | Interactive body map + mission charts |
+| Dev 2 | `src/features/rules-engine/` | Deterministic offline health evaluation (NASA HRP–inspired thresholds) |
+| Dev 3 | `src/features/vitals-form/` | Guided vitals input, streak widget, image preview |
+
+Shared contracts (coordinate before changing):
+- `src/types/health.ts` — single source of types for health data and evaluation
+- `src/data/nasaKnowledge.ts` — educational copy and thresholds
+- `src/data/mockMissionHistory.ts` — demo mission readings
+- `src/app/page.tsx` — dashboard assembly only (thin shell)
+
+## TypeScript
+
+- **Strict mode** always. No `any`. Prefer explicit return types on exported functions.
+- Import domain types from `@/types/health` (or `@/shared/types` re-export if present).
+- New indicators: extend `extraMetrics` or update `health.ts` in a PR reviewed by all three.
+
+## Architecture
+
+- **Feature-based** under `src/features/<feature-name>/`.
+- **Offline-first**: evaluation runs in the browser via `evaluateHealth()`. No blocking API for core UX.
+- **Lightweight**: no heavy 3D, no ORM, no realtime DB for the PMV. `localStorage` for persistence optional.
+- API routes are placeholders for future ground-sync only.
+
+## UI language
+
+- All user-facing text in **clear, simple English**. Do not assume medical training.
+- Explain *why* a measurement matters in space in one short sentence when possible.
+
+## Status color standard (Tailwind)
+
+| Status | Semantics | Tailwind |
+|--------|-----------|----------|
+| `normal` | Within expected range | `emerald` (e.g. `text-emerald-400`, `bg-emerald-500/20`) |
+| `warning` | Trend or value needs attention | `amber` |
+| `critical` | Escalate to crew or ground | `rose` |
+
+Use shared helpers from `@/lib/statusColors` when mapping `HealthStatus` to classes.
+
+## Components
+
+- Prefer small, named exports. One main component per file.
+- Client components: `"use client"` only when needed (forms, charts, interactivity).
+- Dark mission-control aesthetic: `bg-slate-950`, `text-slate-100`, subtle borders `border-slate-800`.
+
+## Git / merge conflict avoidance
+
+- Do not rename files in another feature folder.
+- Add new files inside your folder; wire them from `page.tsx` in a single coordinated commit.
+- Run `npm run build` before merging to main.
+
+## Stack (fixed)
+
+Next.js App Router, TypeScript, Tailwind CSS, `lucide-react`, `recharts` only — no new heavy dependencies without team agreement.
+
+================
+File: .gitignore
+================
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+================
+File: eslint.config.mjs
+================
+import { defineConfig, globalIgnores } from "eslint/config";
+import nextVitals from "eslint-config-next/core-web-vitals";
+import nextTs from "eslint-config-next/typescript";
+
+const eslintConfig = defineConfig([
+  ...nextVitals,
+  ...nextTs,
+  // Override default ignores of eslint-config-next.
+  globalIgnores([
+    // Default ignores of eslint-config-next:
+    ".next/**",
+    "out/**",
+    "build/**",
+    "next-env.d.ts",
+  ]),
+]);
+
+export default eslintConfig;
+
+================
+File: next.config.ts
+================
+import type { NextConfig } from "next";
+
+const nextConfig: NextConfig = {
+  /* config options here */
+  cacheComponents: true,
+  partialPrefetching: true,
+  turbopack: {
+    rules: {
+      "*.css": {
+        loaders: ["@tailwindcss/turbopack"],
+        as: "*.css",
+      },
+    },
+  },
+};
+
+export default nextConfig;
+
+================
+File: README.md
+================
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+
+## Getting Started
+
+First, run the development server:
+
+```bash
+npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+
+## Learn More
+
+To learn more about Next.js, take a look at the following resources:
+
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+
+## Deploy on Vercel
+
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+================
+File: tsconfig.json
+================
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts",
+    "**/*.mts"
+  ],
+  "exclude": ["node_modules"]
+}
+
+================
+File: src/app/api/telemetry/route.ts
+================
+import { NextResponse } from "next/server";
+import { buildMockMissionHistory } from "@/data/mockMissionHistory";
+import type { MissionEnvironment } from "@/types/health";
+
+function parseEnvironment(value: string | null): MissionEnvironment {
+  if (
+    value === "station" ||
+    value === "spacecraft" ||
+    value === "rover" ||
+    value === "lunar_base" ||
+    value === "mars_base"
+  ) {
+    return value;
+  }
+  return "lunar_base";
+}
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const environment = parseEnvironment(searchParams.get("environment"));
+  const days = Math.min(
+    30,
+    Math.max(1, parseInt(searchParams.get("days") ?? "14", 10) || 14)
+  );
+
+  const logs = buildMockMissionHistory(environment).slice(0, days);
+
+  return NextResponse.json({
+    ok: true,
+    environment,
+    days,
+    telemetry: logs,
+    note: "Optional demo feed — does not replace offline evaluateHealth().",
+  });
+}
+
+================
+File: src/app/globals.css
+================
+@import "tailwindcss";
+
+@plugin "daisyui" {
+  themes: mission --default;
+}
+
+@plugin "daisyui/theme" {
+  name: "mission";
+  default: true;
+  prefersdark: true;
+  color-scheme: dark;
+  --color-base-100: oklch(16% 0.022 255);
+  --color-base-200: oklch(21% 0.028 255);
+  --color-base-300: oklch(30% 0.032 255);
+  --color-base-content: oklch(94% 0.014 255);
+  --color-primary: oklch(78% 0.155 215);
+  --color-primary-content: oklch(16% 0.04 215);
+  --color-secondary: oklch(65% 0.08 264);
+  --color-secondary-content: oklch(98% 0.01 264);
+  --color-accent: oklch(72% 0.17 165);
+  --color-accent-content: oklch(20% 0.04 165);
+  --color-neutral: oklch(32% 0.02 264);
+  --color-neutral-content: oklch(92% 0.01 264);
+  --color-info: oklch(70% 0.12 230);
+  --color-info-content: oklch(18% 0.04 230);
+  --color-success: oklch(72% 0.16 155);
+  --color-success-content: oklch(18% 0.04 155);
+  --color-warning: oklch(80% 0.14 85);
+  --color-warning-content: oklch(22% 0.04 85);
+  --color-error: oklch(68% 0.18 15);
+  --color-error-content: oklch(98% 0.01 15);
+  --radius-selector: 0.5rem;
+  --radius-field: 0.5rem;
+  --radius-box: 0.75rem;
+}
+
+@theme inline {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  body {
+    @apply min-h-full bg-base-100 font-sans text-base text-base-content antialiased;
+    background-image: radial-gradient(
+      ellipse 120% 80% at 50% -20%,
+      oklch(32% 0.06 215 / 0.22),
+      transparent 55%
+    );
+  }
+
+  ::selection {
+    background: oklch(78% 0.155 215 / 0.35);
+    color: oklch(98% 0.01 255);
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: oklch(36% 0.04 255) oklch(18% 0.02 255);
+  }
+
+  :where(
+    button:not(:disabled),
+    [role="button"]:not([aria-disabled="true"]),
+    a[href],
+    summary,
+    label[for],
+    input[type="checkbox"],
+    input[type="radio"],
+    input[type="file"],
+    select
+  ) {
+    cursor: pointer;
+  }
+
+  :where(button:disabled, [aria-disabled="true"]) {
+    cursor: not-allowed;
+  }
+
+  :focus {
+    outline: none;
+  }
+
+  :focus-visible {
+  outline: 2px solid oklch(74% 0.14 230);
+  outline-offset: 2px;
+  }
+}
+
+@utility sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+@utility skip-link {
+  @apply sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-box focus:bg-primary focus:px-4 focus:py-2 focus:text-primary-content focus:shadow-lg;
+}
+
+@utility mission-shell {
+  @apply relative min-h-screen text-base-content;
+}
+
+@utility mission-command {
+  @apply border-b border-base-300/80 bg-base-200/90 backdrop-blur-md;
+}
+
+@utility mission-panel {
+  @apply rounded-box border border-base-300/70 bg-base-200/55;
+}
+
+@utility mission-panel-head {
+  @apply border-b border-base-300/60 px-4 py-3 text-sm font-semibold tracking-tight text-base-content;
+}
+
+@utility mission-readout {
+  @apply font-mono text-sm tabular-nums tracking-tight text-primary;
+}
+
+@utility mission-section-title {
+  @apply text-base font-semibold tracking-tight text-base-content sm:text-lg;
+}
+
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+================
+File: src/data/nasaKnowledge.ts
+================
+import type { ExamThreshold, HazardKnowledgeBlock } from "@/types/health";
+
+const HRP_HAZARDS_URL = "https://www.nasa.gov/hrp/hazards/";
+const HRP_RISKS_URL = "https://www.nasa.gov/hrp/risks/";
+const HRP_ONGOING_URL = "https://www.nasa.gov/hrp/ongoing-hrp-research/";
+const CSA_RADIATION_URL =
+  "https://www.asc-csa.gc.ca/eng/news/articles/2026/2026-02-26-monitoring-radiation-astronaut-health.asp";
+const CSA_ISS_SCIENCE_URL =
+  "https://www.asc-csa.gc.ca/eng/iss/science/why-do-we-conduct-science-experiments-in-space.asp";
+
+export const NASA_HAZARDS_KNOWLEDGE: HazardKnowledgeBlock[] = [
+  {
+    hazard: "radiation",
+    title: "Radiation",
+    shortDescription:
+      "Outside Earth's magnetic field, cosmic and solar radiation increase long-term health risk.",
+    whyMonitorInSpace:
+      "Radiation can affect blood cells and immune response. Tracking vitals and optional dose helps spot early problems.",
+    whatCanBeMeasured: [
+      "Optional daily radiation dose (mSv)",
+      "Heart rate and blood pressure trends",
+      "Sleep and mood (stress from exposure awareness)",
+    ],
+    preventiveActions: [
+      "Shelter in shielded modules during solar particle events",
+      "Keep sleep and hydration routines stable",
+      "Report fatigue or unusual bruising to the crew medical officer",
+    ],
+    relatedSystems: ["immune_musculoskeletal", "metabolic"],
+    hrpRisks: [
+      "Radiation carcinogenesis",
+      "Acute radiation syndromes (SPE events)",
+      "Altered immune response",
+    ],
+    officialLinks: [
+      { label: "NASA HRP — Spaceflight Hazards", url: HRP_HAZARDS_URL },
+      { label: "CSA — Monitoring radiation & astronaut health", url: CSA_RADIATION_URL },
+    ],
+  },
+  {
+    hazard: "isolation",
+    title: "Isolation & confinement",
+    shortDescription:
+      "Small crews far from home can affect sleep, mood, and team coordination.",
+    whyMonitorInSpace:
+      "Mood and sleep are early signs of stress. Catching trends early helps the crew support each other.",
+    whatCanBeMeasured: [
+      "Mood score (1–5)",
+      "Stress level (1–10)",
+      "Sleep hours",
+      "Heart rate at rest",
+    ],
+    preventiveActions: [
+      "Keep a daily check-in routine",
+      "Use scheduled communication with family or ground",
+      "Balance workload and rest periods",
+    ],
+    relatedSystems: ["neuro_behavioral"],
+    hrpRisks: [
+      "Behavioral health & performance",
+      "Team cohesion & psychosocial adaptation",
+      "Sleep deficiency",
+    ],
+    officialLinks: [
+      { label: "NASA HRP — Spaceflight Hazards", url: HRP_HAZARDS_URL },
+      { label: "NASA HRP — Human Health Risks", url: HRP_RISKS_URL },
+    ],
+  },
+  {
+    hazard: "distance",
+    title: "Distance from Earth",
+    shortDescription:
+      "Help from Earth is delayed; crews must detect and respond to health issues locally.",
+    whyMonitorInSpace:
+      "Clear thresholds and escalation rules let the crew act without waiting for real-time surgery support.",
+    whatCanBeMeasured: [
+      "Full daily vitals panel",
+      "Trends over mission days",
+      "Optional images for ground review when link is available",
+    ],
+    preventiveActions: [
+      "Follow escalation: self-care → crew → flight surgeon",
+      "Document every abnormal reading",
+      "Run simulations for urgent scenarios",
+    ],
+    relatedSystems: [
+      "cardiovascular",
+      "neuro_behavioral",
+      "metabolic",
+      "immune_musculoskeletal",
+    ],
+    hrpRisks: [
+      "Inadequate medical capabilities",
+      "Behavioral health under delayed Earth support",
+      "Mission-critical autonomous decision-making",
+    ],
+    officialLinks: [
+      { label: "NASA HRP — Spaceflight Hazards", url: HRP_HAZARDS_URL },
+      { label: "NASA HRP — Ongoing research", url: HRP_ONGOING_URL },
+    ],
+  },
+  {
+    hazard: "gravity",
+    title: "Altered gravity",
+    shortDescription:
+      "Microgravity and lunar gravity change fluids, bones, and muscles.",
+    whyMonitorInSpace:
+      "Blood pressure and heart rate shift as the body adapts. Metabolic signs can change with exercise load.",
+    whatCanBeMeasured: [
+      "Blood pressure and heart rate",
+      "Blood sugar (after meals)",
+      "Exercise notes in extra metrics",
+    ],
+    preventiveActions: [
+      "Complete daily resistive exercise",
+      "Hydrate per flight surgeon protocol",
+      "Monitor dizziness when standing in partial gravity",
+    ],
+    relatedSystems: ["cardiovascular", "immune_musculoskeletal", "metabolic"],
+    hrpRisks: [
+      "Cardiovascular deconditioning",
+      "Bone loss & muscle atrophy",
+      "Sensorimotor adaptation",
+    ],
+    officialLinks: [
+      { label: "NASA HRP — Spaceflight Hazards", url: HRP_HAZARDS_URL },
+      { label: "NASA HRP — Human Health Risks", url: HRP_RISKS_URL },
+    ],
+  },
+  {
+    hazard: "closed_environment",
+    title: "Closed environment",
+    shortDescription:
+      "Recycled air and water, noise, and CO₂ can affect sleep and metabolism.",
+    whyMonitorInSpace:
+      "Temperature, hydration, and blood sugar help detect dehydration or poor recovery in the cabin.",
+    whatCanBeMeasured: [
+      "Temperature",
+      "Blood sugar",
+      "Sleep hours",
+      "Cabin CO₂ / hygiene checks",
+    ],
+    preventiveActions: [
+      "Maintain ventilation and hygiene schedules",
+      "Limit caffeine before sleep",
+      "Log headaches or nausea in notes",
+    ],
+    relatedSystems: ["metabolic", "neuro_behavioral"],
+    hrpRisks: [
+      "Altered metabolic response",
+      "Immune dysregulation in confined habitats",
+      "Hypoxia / hypercapnia (elevated CO₂)",
+    ],
+    officialLinks: [
+      { label: "NASA HRP — Spaceflight Hazards", url: HRP_HAZARDS_URL },
+      { label: "CSA — Science on the ISS", url: CSA_ISS_SCIENCE_URL },
+    ],
+  },
+];
+
+export const EXAM_THRESHOLDS: ExamThreshold[] = [
+  {
+    metric: "systolicBP",
+    label: "Systolic blood pressure",
+    unit: "mmHg",
+    normal: { min: 90, max: 130 },
+    warning: { min: 80, max: 140 },
+  },
+  {
+    metric: "diastolicBP",
+    label: "Diastolic blood pressure",
+    unit: "mmHg",
+    normal: { min: 60, max: 85 },
+    warning: { min: 50, max: 95 },
+  },
+  {
+    metric: "heartRate",
+    label: "Heart rate",
+    unit: "bpm",
+    normal: { min: 55, max: 90 },
+    warning: { min: 45, max: 110 },
+  },
+  {
+    metric: "bloodSugar",
+    label: "Blood sugar",
+    unit: "mg/dL",
+    normal: { min: 70, max: 140 },
+    warning: { min: 60, max: 180 },
+  },
+  {
+    metric: "temperature",
+    label: "Body temperature",
+    unit: "°C",
+    normal: { min: 36.1, max: 37.5 },
+    warning: { min: 35.5, max: 38.0 },
+  },
+  {
+    metric: "sleepHours",
+    label: "Sleep",
+    unit: "hours",
+    normal: { min: 6, max: 9 },
+    warning: { min: 4, max: 10 },
+  },
+  {
+    metric: "moodScore",
+    label: "Mood",
+    unit: "1–5",
+    normal: { min: 3, max: 5 },
+    warning: { min: 2, max: 5 },
+  },
+  {
+    metric: "stressLevel",
+    label: "Stress level",
+    unit: "1–10",
+    normal: { min: 1, max: 5 },
+    warning: { min: 1, max: 7 },
+  },
+  {
+    metric: "radiationMsv",
+    label: "Radiation dose",
+    unit: "mSv",
+    normal: { min: 0, max: 1.0 },
+    warning: { min: 0, max: 1.5 },
+  },
+];
+
+export const MEASUREMENT_GUIDE: Record<
+  import("@/types/health").VitalsFormMetric,
+  { howTo: string; whySpace: string }
+> = {
+  systolicBP: {
+    howTo: "Sit calmly for 2 minutes. Use the automated cuff at heart level. Record the top number.",
+    whySpace: "Fluid shifts in microgravity can change blood pressure readings.",
+  },
+  diastolicBP: {
+    howTo: "Use the same cuff reading. Record the bottom number.",
+    whySpace: "Helps track cardiovascular adaptation during the mission.",
+  },
+  heartRate: {
+    howTo: "Count beats for 30 seconds and multiply by 2, or use a wearable.",
+    whySpace: "Stress, workload, and deconditioning affect heart rate in space.",
+  },
+  bloodSugar: {
+    howTo: "Use a glucose meter after the protocol fast or meal window.",
+    whySpace: "Diet changes and exercise schedules can shift glucose in flight.",
+  },
+  temperature: {
+    howTo: "Use the forehead or ear thermometer per kit instructions.",
+    whySpace: "Fever or low temperature may signal infection in a closed cabin.",
+  },
+  sleepHours: {
+    howTo: "Estimate time actually asleep during the last 24 hours.",
+    whySpace: "Light cycles and noise make sleep harder on station or transit.",
+  },
+  moodScore: {
+    howTo: "Tap the face that matches how you feel today (1 = very low, 5 = great).",
+    whySpace: "Mood tracks isolation stress and helps the crew stay coordinated.",
+  },
+  radiationMsv: {
+    howTo:
+      "Read today's dose from the personal dosimeter or cabin monitor. Enter cumulative daily exposure in mSv.",
+    whySpace:
+      "Deep-space and lunar missions lack Earth's magnetic shielding; dose tracking supports SPE shelter decisions.",
+  },
+  stressLevel: {
+    howTo:
+      "Rate perceived stress from 1 (calm) to 10 (overwhelming) using the crew wellness scale after your check-in.",
+    whySpace:
+      "Isolation, workload, and radiation awareness compound stress; early scores guide crew support before performance drops.",
+  },
+};
+
+/** NASA/CSA caution line for daily radiation chart (mSv) */
+export const RADIATION_CHART_CAUTION_MSV = 1.0;
+
+================
+File: src/features/vitals-form/MissionRoutinePanel.tsx
+================
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import { CheckSquare, Zap } from "lucide-react";
+import type { AppLocale } from "@/lib/locale";
+import { UI_STRINGS } from "@/lib/locale";
+
+const CHECKLIST_KEY = "healthnasa_daily_checklist";
+const POINTS_KEY = "healthnasa_readiness_points";
+const REACTION_KEY = "healthnasa_reaction_avg_ms";
+
+const CHECKLIST_IDS = [
+  "resistive",
+  "hydration",
+  "sleep",
+  "radiation",
+  "cabin",
+] as const;
+
+type ChecklistId = (typeof CHECKLIST_IDS)[number];
+
+interface MissionRoutinePanelProps {
+  locale?: AppLocale;
+  onReactionRecorded?: (averageMs: number) => void;
+}
+
+export function MissionRoutinePanel({
+  locale = "es",
+  onReactionRecorded,
+}: MissionRoutinePanelProps) {
+  const ui = UI_STRINGS[locale];
+
+  const checklistLabels: Record<ChecklistId, string> = {
+    resistive: ui.checklistResistiveExercise,
+    hydration: ui.checklistHydration,
+    sleep: ui.checklistSleep,
+    radiation: ui.checklistRadiation,
+    cabin: ui.checklistCabin,
+  };
+
+  const emptyChecklist = (): Record<ChecklistId, boolean> => ({
+    resistive: false,
+    hydration: false,
+    sleep: false,
+    radiation: false,
+    cabin: false,
+  });
+
+  const [checked, setChecked] =
+    useState<Record<ChecklistId, boolean>>(emptyChecklist);
+  const [points, setPoints] = useState(0);
+  const [reactionAvg, setReactionAvg] = useState<number | null>(null);
+
+  useEffect(() => {
+    try {
+      const base = emptyChecklist();
+      const raw = localStorage.getItem(CHECKLIST_KEY);
+      if (raw) {
+        setChecked({ ...base, ...(JSON.parse(raw) as Record<ChecklistId, boolean>) });
+      }
+      const pts = localStorage.getItem(POINTS_KEY);
+      if (pts) setPoints(parseInt(pts, 10) || 0);
+      const rx = localStorage.getItem(REACTION_KEY);
+      if (rx) setReactionAvg(parseInt(rx, 10) || null);
+    } catch {
+      /* offline / private mode */
+    }
+  }, []);
+
+  const [reactionPhase, setReactionPhase] = useState<
+    "idle" | "waiting" | "go" | "done"
+  >("idle");
+  const [trial, setTrial] = useState(0);
+  const [trialTimes, setTrialTimes] = useState<number[]>([]);
+  const goAtRef = useRef<number | null>(null);
+  const waitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const persistChecklist = useCallback(
+    (next: Record<ChecklistId, boolean>, nextPoints: number) => {
+      try {
+        localStorage.setItem(CHECKLIST_KEY, JSON.stringify(next));
+        localStorage.setItem(POINTS_KEY, String(nextPoints));
+      } catch {
+        /* ignore */
+      }
+    },
+    []
+  );
+
+  function toggleItem(id: ChecklistId) {
+    setChecked((prev) => {
+      const wasOn = prev[id];
+      const next = { ...prev, [id]: !wasOn };
+      const delta = wasOn ? -10 : 10;
+      setPoints((p) => {
+        const nextPoints = Math.max(0, p + delta);
+        persistChecklist(next, nextPoints);
+        return nextPoints;
+      });
+      return next;
+    });
+  }
+
+  function startReactionTest() {
+    if (waitTimerRef.current) clearTimeout(waitTimerRef.current);
+    setTrial(0);
+    setTrialTimes([]);
+    setReactionPhase("waiting");
+    scheduleGoSignal();
+  }
+
+  function scheduleGoSignal() {
+    const delay = 1200 + Math.random() * 2200;
+    waitTimerRef.current = setTimeout(() => {
+      goAtRef.current = performance.now();
+      setReactionPhase("go");
+    }, delay);
+  }
+
+  function onReactionTap() {
+    if (reactionPhase === "waiting") {
+      if (waitTimerRef.current) clearTimeout(waitTimerRef.current);
+      setReactionPhase("idle");
+      return;
+    }
+    if (reactionPhase !== "go" || goAtRef.current === null) return;
+
+    const elapsed = Math.round(performance.now() - goAtRef.current);
+    const nextTimes = [...trialTimes, elapsed];
+    setTrialTimes(nextTimes);
+    goAtRef.current = null;
+
+    if (nextTimes.length >= 3) {
+      const avg = Math.round(
+        nextTimes.reduce((a, b) => a + b, 0) / nextTimes.length
+      );
+      setReactionAvg(avg);
+      setReactionPhase("done");
+      try {
+        localStorage.setItem(REACTION_KEY, String(avg));
+      } catch {
+        /* ignore */
+      }
+      onReactionRecorded?.(avg);
+    } else {
+      setTrial(nextTimes.length);
+      setReactionPhase("waiting");
+      scheduleGoSignal();
+    }
+  }
+
+  const completedCount = CHECKLIST_IDS.filter((id) => checked[id]).length;
+  const progressPct = (completedCount / CHECKLIST_IDS.length) * 100;
+
+  const targetColor =
+    reactionPhase === "go"
+      ? "bg-emerald-500 border-emerald-300"
+      : reactionPhase === "waiting"
+        ? "bg-amber-500/40 border-amber-400"
+        : "bg-slate-700 border-slate-600";
+
+  return (
+    <div className="mission-panel p-4">
+      <div className="flex items-center justify-between text-sm text-base-content/80">
+        <span>{ui.readinessPoints}</span>
+        <span className="font-medium text-success">{points}</span>
+      </div>
+      <progress
+        className="progress progress-success mt-2 w-full"
+        value={progressPct}
+        max={100}
+        aria-label={`${ui.readinessPoints}: ${completedCount} ${ui.of} ${CHECKLIST_IDS.length}`}
+      />
+      <ul className="mt-4 space-y-2">
+        {CHECKLIST_IDS.map((id) => (
+          <li key={id}>
+            <label className="flex cursor-pointer items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={checked[id]}
+                onChange={() => toggleItem(id)}
+                className="checkbox checkbox-sm checkbox-success"
+              />
+              <CheckSquare className="h-4 w-4 text-base-content/60" aria-hidden />
+              {checklistLabels[id]}
+            </label>
+          </li>
+        ))}
+      </ul>
+
+      <div className="divider my-6" />
+
+      <h4 className="flex items-center gap-2 text-base font-semibold">
+        <Zap className="h-4 w-4 text-primary" aria-hidden />
+        {ui.reactionTest}
+      </h4>
+      <p className="mt-1 text-sm text-base-content/75">{ui.reactionTestHint}</p>
+      <div className="mt-3 flex flex-wrap items-center gap-3">
+        {reactionPhase === "idle" || reactionPhase === "done" ? (
+          <button type="button" onClick={startReactionTest} className="btn btn-primary btn-sm">
+            {ui.reactionStart}
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={onReactionTap}
+            aria-label={
+              reactionPhase === "waiting" ? ui.reactionWait : ui.reactionTap
+            }
+            className={`btn flex h-20 w-20 min-h-20 items-center justify-center rounded-box border-2 text-xs ${targetColor}`}
+          >
+            {reactionPhase === "waiting"
+              ? ui.reactionWait
+              : ui.reactionTap}
+          </button>
+        )}
+        {trial > 0 && reactionPhase !== "done" && (
+          <span className="text-xs text-base-content/75">
+            {ui.stepOf} {trial + 1} {ui.of} 3
+          </span>
+        )}
+        {reactionAvg !== null && (
+          <p className="text-sm" role="status" aria-live="polite">
+            {ui.reactionResult}: <strong>{reactionAvg}</strong>
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+================
+File: shared/types.ts
+================
+/**
+ * Workspace re-export — keep feature code importing from here or @/types/health in sync.
+ */
+export type {
+  SpaceflightHazard,
+  MissionEnvironment,
+  HealthStatus,
+  EscalationLevel,
+  BodySystemStatus,
+  OfficialReferenceLink,
+  MissionProfile,
+  VitalReadings,
+  SystemStatusEntry,
+  ActionableGuidance,
+  HealthEvaluation,
+  HazardKnowledgeBlock,
+  VitalsFormMetric,
+  ExamThreshold,
+  EnvironmentMissionMeta,
+  MissionScenarioId,
+  AstronautHealthArchetype,
+  MockAstronautProfile,
+} from "../src/types/health";
+
+================
+File: src/app/api/health-log/route.ts
+================
+import { NextResponse } from "next/server";
+import { buildMockMissionHistory } from "@/data/mockMissionHistory";
+import type { MissionEnvironment, VitalReadings } from "@/types/health";
+
+/** In-memory stub for ground-sync demos — resets on deploy (Render ephemeral FS). */
+const memoryLogs: VitalReadings[] = [];
+
+function parseEnvironment(value: string | null): MissionEnvironment {
+  if (
+    value === "station" ||
+    value === "spacecraft" ||
+    value === "rover" ||
+    value === "lunar_base" ||
+    value === "mars_base"
+  ) {
+    return value;
+  }
+  return "station";
+}
+
+function simulateLatencyMs(environment: MissionEnvironment): number {
+  const map: Record<MissionEnvironment, number> = {
+    station: 500,
+    spacecraft: 12 * 60 * 1000,
+    rover: 2600,
+    lunar_base: 2600,
+    mars_base: 18 * 60 * 1000,
+  };
+  return map[environment];
+}
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const environment = parseEnvironment(searchParams.get("environment"));
+  const days = Math.min(
+    30,
+    Math.max(1, parseInt(searchParams.get("days") ?? "14", 10) || 14)
+  );
+
+  if (searchParams.get("environment") || searchParams.get("days")) {
+    const synthetic = buildMockMissionHistory(environment).slice(0, days);
+    return NextResponse.json({
+      ok: true,
+      mode: "synthetic_telemetry",
+      environment,
+      days,
+      logs: synthetic,
+      signalLatencyMs: simulateLatencyMs(environment),
+      note: "Synthetic telemetry for demos; client evaluation remains offline-first.",
+    });
+  }
+
+  return NextResponse.json({
+    ok: true,
+    count: memoryLogs.length,
+    logs: memoryLogs,
+    note: "Client-side evaluation works fully offline; this endpoint is optional.",
+  });
+}
+
+interface PostPayload extends VitalReadings {
+  syncAck?: boolean;
+}
+
+export async function POST(request: Request) {
+  try {
+    const body = (await request.json()) as PostPayload;
+    if (typeof body.missionDay !== "number" || !body.recordedAt) {
+      return NextResponse.json(
+        { ok: false, error: "Invalid vitals payload" },
+        { status: 400 }
+      );
+    }
+
+    const { syncAck, ...vitals } = body;
+    memoryLogs.push(vitals);
+
+    const latencyMs = simulateLatencyMs(vitals.environment ?? "station");
+    await new Promise((resolve) => setTimeout(resolve, Math.min(latencyMs, 1500)));
+
+    return NextResponse.json({
+      ok: true,
+      received: vitals.missionDay,
+      groundSyncAck: syncAck === true,
+      simulatedSignalLatencyMs: latencyMs,
+      message:
+        "Ground control acknowledged receipt (simulated). Clinical rules already ran on-device.",
+    });
+  } catch {
+    return NextResponse.json({ ok: false, error: "Bad JSON" }, { status: 400 });
+  }
+}
+
+================
+File: src/app/layout.tsx
+================
+import type { Metadata } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
+import "./globals.css";
+
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
+
+export const metadata: Metadata = {
+  title: "Mission Health Control | NASA Space Apps",
+  description:
+    "Offline-first astronaut health monitoring for space missions.",
+};
+
+export default function RootLayout({ children }: LayoutProps<"/">) {
+  return (
+    <html
+      lang="en"
+      data-theme="mission"
+      className={`${geistSans.variable} ${geistMono.variable} h-full`}
+    >
+      <body className="flex min-h-full flex-col">{children}</body>
+    </html>
+  );
+}
+
+================
+File: src/data/mockMissionHistory.ts
+================
+import type { MissionEnvironment, VitalReadings } from "@/types/health";
+
+const baseDate = new Date("2026-11-01T08:00:00Z");
+
+function entry(
+  day: number,
+  partial: Partial<VitalReadings> & Pick<VitalReadings, "environment">
+): VitalReadings {
+  const d = new Date(baseDate);
+  d.setUTCDate(d.getUTCDate() + day - 1);
+  return {
+    missionDay: day,
+    recordedAt: d.toISOString(),
+    systolicBP: 118,
+    diastolicBP: 76,
+    heartRate: 72,
+    bloodSugar: 98,
+    temperature: 36.7,
+    sleepHours: 7.2,
+    moodScore: 4,
+    stressLevel: 3,
+    radiationMsv: 0.4 + day * 0.02,
+    ...partial,
+    environment: partial.environment,
+  };
+}
+
+/** 14 mission days — subtle upward BP / downward sleep trend after day 9 */
+export function buildMockMissionHistory(
+  environment: MissionEnvironment = "station"
+): VitalReadings[] {
+  const env = environment;
+  const days: VitalReadings[] = [];
+
+  for (let day = 1; day <= 14; day++) {
+    let systolic = 112 + Math.sin(day / 3) * 4;
+    let diastolic = 74;
+    let heartRate = 68 + (day % 3);
+    let sleep = 7.4 - (day > 10 ? 0.15 * (day - 10) : 0);
+    let mood = day > 11 ? 3 : 4;
+    let glucose = 95 + (day > 8 ? (day - 8) * 2 : 0);
+    let stress = day > 12 ? 5 : 3;
+
+    if (day === 12) {
+      systolic = 138;
+      diastolic = 92;
+      heartRate = 98;
+    }
+    if (day === 13) {
+      sleep = 4.5;
+      mood = 2;
+      stress = 6;
+    }
+    if (day === 14) {
+      systolic = 142;
+      glucose = 165;
+    }
+
+    const envDoseBoost =
+      env === "mars_base" ? 0.12 : env === "spacecraft" ? 0.08 : env === "rover" ? 0.05 : 0;
+    const radiationMsv = day >= 14 ? 0.85 + envDoseBoost : 0.35 + day * 0.03 + envDoseBoost;
+
+    days.push(
+      entry(day, {
+        environment: env,
+        systolicBP: Math.round(systolic),
+        diastolicBP: Math.round(diastolic),
+        heartRate: Math.round(heartRate),
+        bloodSugar: Math.round(glucose),
+        temperature: 36.5 + (day === 13 ? 0.4 : 0.2),
+        sleepHours: Math.round(sleep * 10) / 10,
+        moodScore: mood,
+        stressLevel: stress,
+        radiationMsv,
+      })
+    );
+  }
+
+  return days;
+}
+
+export const MOCK_MISSION_HISTORY = buildMockMissionHistory("station");
+
+function scenarioBase(environment: MissionEnvironment): VitalReadings {
+  const last = buildMockMissionHistory(environment).slice(-1)[0];
+  return {
+    ...last,
+    missionDay: (last?.missionDay ?? 14) + 1,
+    recordedAt: new Date().toISOString(),
+    environment,
+  };
+}
+
+/** Solar Particle Event — high radiation, fatigue, elevated HR */
+export function solarParticleScenario(
+  environment: MissionEnvironment = "station"
+): VitalReadings {
+  const base = scenarioBase(environment);
+  return {
+    ...base,
+    radiationMsv: 1.75,
+    heartRate: 108,
+    sleepHours: 5.2,
+    moodScore: 3,
+    stressLevel: 7,
+    extraMetrics: { fatigueLevel: "elevated" },
+  };
+}
+
+/** Cardio / microgravity dehydration — ground flight surgeon */
+export function cardioDehydrationScenario(
+  environment: MissionEnvironment = "station"
+): VitalReadings {
+  const base = scenarioBase(environment);
+  return {
+    ...base,
+    systolicBP: 166,
+    diastolicBP: 102,
+    heartRate: 124,
+    temperature: 38.3,
+    bloodSugar: 118,
+    stressLevel: 6,
+    radiationMsv: 0.6,
+  };
+}
+
+/** Isolation & circadian drift — crew attention */
+export function isolationDriftScenario(
+  environment: MissionEnvironment = "station"
+): VitalReadings {
+  const base = scenarioBase(environment);
+  return {
+    ...base,
+    sleepHours: 3.8,
+    moodScore: 2,
+    stressLevel: 8,
+    heartRate: 86,
+    extraMetrics: { reactionTimeMs: 540 },
+  };
+}
+
+/** @deprecated Use scenario helpers instead */
+export const CRITICAL_SCENARIO_READING: VitalReadings = cardioDehydrationScenario("station");
+
+================
+File: src/features/rules-engine/evaluateHealth.ts
+================
+import { EXAM_THRESHOLDS, NASA_HAZARDS_KNOWLEDGE } from "@/data/nasaKnowledge";
+import { EVALUATOR_COPY, type AppLocale } from "@/lib/locale";
+import type {
+  ActionableGuidance,
+  BodySystemStatus,
+  EscalationLevel,
+  HealthEvaluation,
+  HealthStatus,
+  SpaceflightHazard,
+  SystemStatusEntry,
+  VitalReadings,
+} from "@/types/health";
+
+function scoreMetric(
+  value: number,
+  normal: { min?: number; max?: number },
+  warning: { min?: number; max?: number }
+): HealthStatus {
+  const inRange = (range: { min?: number; max?: number }, v: number) => {
+    if (range.min !== undefined && v < range.min) return false;
+    if (range.max !== undefined && v > range.max) return false;
+    return true;
+  };
+  if (inRange(normal, value)) return "normal";
+  if (inRange(warning, value)) return "warning";
+  return "critical";
+}
+
+function trendDelta(recent: VitalReadings[], pick: (v: VitalReadings) => number): number {
+  if (recent.length < 2) return 0;
+  const sorted = [...recent].sort((a, b) => a.missionDay - b.missionDay);
+  const last = sorted[sorted.length - 1];
+  const prev = sorted[sorted.length - 2];
+  return pick(last) - pick(prev);
+}
+
+function worst(a: HealthStatus, b: HealthStatus): HealthStatus {
+  const rank: Record<HealthStatus, number> = {
+    normal: 0,
+    warning: 1,
+    critical: 2,
+  };
+  return rank[a] >= rank[b] ? a : b;
+}
+
+function systemForMetric(metric: string): BodySystemStatus {
+  const map: Record<string, BodySystemStatus> = {
+    systolicBP: "cardiovascular",
+    diastolicBP: "cardiovascular",
+    heartRate: "cardiovascular",
+    bloodSugar: "metabolic",
+    temperature: "metabolic",
+    sleepHours: "neuro_behavioral",
+    moodScore: "neuro_behavioral",
+    stressLevel: "neuro_behavioral",
+    radiationMsv: "immune_musculoskeletal",
+  };
+  return map[metric] ?? "immune_musculoskeletal";
+}
+
+function buildGuidance(
+  hazards: Set<SpaceflightHazard>,
+  actions: string[],
+  why: string
+): ActionableGuidance {
+  const hazardImpact = NASA_HAZARDS_KNOWLEDGE.filter((h) =>
+    hazards.has(h.hazard)
+  ).map((h) => h.hazard);
+  return {
+    whyNeededInSpace: why,
+    hazardImpact,
+    recommendedActions: actions,
+  };
+}
+
+function reactionTimeMs(current: VitalReadings): number | undefined {
+  const raw = current.extraMetrics?.reactionTimeMs;
+  if (typeof raw === "number") return raw;
+  if (typeof raw === "string") {
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : undefined;
+  }
+  return undefined;
+}
+
+/**
+ * Pure offline evaluator — Dev 2 extends thresholds and escalation rules here.
+ */
+export function evaluateHealth(
+  current: VitalReadings,
+  recentHistory: VitalReadings[] = [],
+  locale: AppLocale = "es"
+): HealthEvaluation {
+  const copy = EVALUATOR_COPY[locale];
+  const history = [...recentHistory, current].sort(
+    (a, b) => a.missionDay - b.missionDay
+  );
+
+  const metricStatuses: Record<string, HealthStatus> = {};
+  for (const th of EXAM_THRESHOLDS) {
+    if (th.metric === "radiationMsv" || th.metric === "stressLevel") continue;
+    const value = current[th.metric] as number;
+    metricStatuses[th.metric] = scoreMetric(value, th.normal, th.warning);
+  }
+
+  if (current.radiationMsv !== undefined) {
+    const dose = current.radiationMsv;
+    let st: HealthStatus = "normal";
+    if (dose > 1.5) st = "critical";
+    else if (dose > 1.0) st = "warning";
+    metricStatuses.radiationMsv = st;
+    metricStatuses.radiation = st;
+  }
+
+  if (current.stressLevel !== undefined) {
+    const stress = current.stressLevel;
+    let st: HealthStatus = "normal";
+    if (stress >= 8) st = "critical";
+    else if (stress >= 6) st = "warning";
+    metricStatuses.stressLevel = st;
+  }
+
+  const reactionMs = reactionTimeMs(current);
+  if (reactionMs !== undefined) {
+    let st: HealthStatus = "normal";
+    if (reactionMs > 650) st = "critical";
+    else if (reactionMs > 450) st = "warning";
+    metricStatuses.reactionTimeMs = st;
+  }
+
+  const bpTrend = trendDelta(history, (v) => v.systolicBP);
+  const sleepTrend = trendDelta(history, (v) => v.sleepHours);
+  if (bpTrend >= 8) {
+    metricStatuses.systolicBP = worst(metricStatuses.systolicBP, "warning");
+  }
+  if (sleepTrend <= -1.5) {
+    metricStatuses.sleepHours = worst(metricStatuses.sleepHours, "warning");
+  }
+
+  const bySystem = new Map<BodySystemStatus, HealthStatus>();
+  for (const th of EXAM_THRESHOLDS) {
+    if (th.metric === "radiationMsv" || th.metric === "stressLevel") continue;
+    const sys = systemForMetric(th.metric);
+    const st = metricStatuses[th.metric];
+    bySystem.set(sys, worst(bySystem.get(sys) ?? "normal", st));
+  }
+  if (metricStatuses.radiation === "warning" || metricStatuses.radiation === "critical") {
+    bySystem.set(
+      "immune_musculoskeletal",
+      worst(bySystem.get("immune_musculoskeletal") ?? "normal", metricStatuses.radiation)
+    );
+  }
+  if (metricStatuses.stressLevel) {
+    bySystem.set(
+      "neuro_behavioral",
+      worst(bySystem.get("neuro_behavioral") ?? "normal", metricStatuses.stressLevel)
+    );
+  }
+  if (metricStatuses.reactionTimeMs) {
+    bySystem.set(
+      "neuro_behavioral",
+      worst(bySystem.get("neuro_behavioral") ?? "normal", metricStatuses.reactionTimeMs)
+    );
+  }
+
+  const systemStatuses: SystemStatusEntry[] = (
+    [
+      "cardiovascular",
+      "neuro_behavioral",
+      "metabolic",
+      "immune_musculoskeletal",
+    ] as const
+  ).map((system) => ({
+    system,
+    status: bySystem.get(system) ?? "normal",
+    summary:
+      (bySystem.get(system) ?? "normal") === "normal"
+        ? copy.systemNormal
+        : copy.systemWarning,
+  }));
+
+  let overallStatus: HealthStatus = "normal";
+  for (const st of Object.values(metricStatuses)) {
+    overallStatus = worst(overallStatus, st);
+  }
+  for (const s of systemStatuses) {
+    overallStatus = worst(overallStatus, s.status);
+  }
+
+  let escalationLevel: EscalationLevel = "self_care";
+  if (overallStatus === "warning") escalationLevel = "crew_attention";
+  if (overallStatus === "critical") escalationLevel = "ground_flight_surgeon";
+  if (
+    current.systolicBP >= 160 ||
+    current.heartRate >= 120 ||
+    current.temperature >= 38.2
+  ) {
+    escalationLevel = "ground_flight_surgeon";
+    overallStatus = "critical";
+  }
+  if (
+    (current.stressLevel !== undefined && current.stressLevel >= 8) ||
+    (metricStatuses.reactionTimeMs === "warning" ||
+      metricStatuses.reactionTimeMs === "critical")
+  ) {
+    escalationLevel = worstEscalation(escalationLevel, "crew_attention");
+    if (
+      current.stressLevel !== undefined &&
+      current.stressLevel >= 8 &&
+      (metricStatuses.sleepHours === "critical" ||
+        metricStatuses.moodScore === "critical")
+    ) {
+      escalationLevel = worstEscalation(escalationLevel, "crew_attention");
+    }
+  }
+
+  const guidance: ActionableGuidance[] = [];
+
+  if (
+    metricStatuses.systolicBP !== "normal" ||
+    metricStatuses.heartRate !== "normal"
+  ) {
+    guidance.push(
+      buildGuidance(
+        new Set(["gravity", "distance"]),
+        copy.guidance.cardio.actions,
+        copy.guidance.cardio.why
+      )
+    );
+  }
+
+  if (
+    metricStatuses.sleepHours !== "normal" ||
+    metricStatuses.moodScore !== "normal" ||
+    (metricStatuses.stressLevel && metricStatuses.stressLevel !== "normal") ||
+    (metricStatuses.reactionTimeMs && metricStatuses.reactionTimeMs !== "normal")
+  ) {
+    guidance.push(
+      buildGuidance(
+        new Set(["isolation", "closed_environment"]),
+        copy.guidance.neuro.actions,
+        copy.guidance.neuro.why
+      )
+    );
+  }
+
+  if (metricStatuses.bloodSugar !== "normal" || metricStatuses.temperature !== "normal") {
+    guidance.push(
+      buildGuidance(
+        new Set(["closed_environment", "distance"]),
+        copy.guidance.metabolic.actions,
+        copy.guidance.metabolic.why
+      )
+    );
+  }
+
+  if (metricStatuses.radiation === "warning" || metricStatuses.radiation === "critical") {
+    guidance.push(
+      buildGuidance(
+        new Set(["radiation"]),
+        [
+          locale === "es"
+            ? "Refugio en módulo blindado y repetir dosimetría."
+            : "Shelter in shielded module and repeat dosimetry.",
+          locale === "es"
+            ? "Informar al oficial médico y registrar fatiga."
+            : "Inform crew medical officer and log fatigue.",
+        ],
+        locale === "es"
+          ? "Picos de radiación afectan inmunidad y requieren contramedidas inmediatas."
+          : "Radiation spikes affect immunity and need immediate countermeasures.",
+      )
+    );
+  }
+
+  if (guidance.length === 0) {
+    guidance.push(
+      buildGuidance(
+        new Set(["distance"]),
+        copy.guidance.default.actions,
+        copy.guidance.default.why
+      )
+    );
+  }
+
+  const headline =
+    escalationLevel === "ground_flight_surgeon"
+      ? copy.headlines.ground
+      : escalationLevel === "crew_attention"
+        ? copy.headlines.crew
+        : copy.headlines.ok;
+
+  return {
+    overallStatus,
+    escalationLevel,
+    systemStatuses,
+    guidance,
+    headline,
+  };
+}
+
+function worstEscalation(a: EscalationLevel, b: EscalationLevel): EscalationLevel {
+  const rank: Record<EscalationLevel, number> = {
+    self_care: 0,
+    crew_attention: 1,
+    ground_flight_surgeon: 2,
+  };
+  return rank[a] >= rank[b] ? a : b;
+}
+
+================
+File: src/features/vitals-form/VitalsInputForm.tsx
+================
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Camera, Flame } from "lucide-react";
+import {
+  MEASUREMENT_GUIDE_LOCALE,
+  type AppLocale,
+  UI_STRINGS,
+} from "@/lib/locale";
+import { statusStyles } from "@/lib/statusColors";
+import type { MissionEnvironment, VitalReadings, VitalsFormMetric } from "@/types/health";
+
+const STORAGE_KEY = "healthnasa_checkin_streak";
+const REACTION_KEY = "healthnasa_reaction_avg_ms";
+
+const STEP_METRICS: VitalsFormMetric[] = [
+  "systolicBP",
+  "diastolicBP",
+  "heartRate",
+  "bloodSugar",
+  "temperature",
+  "sleepHours",
+  "moodScore",
+  "radiationMsv",
+  "stressLevel",
+];
+
+interface VitalsInputFormProps {
+  environment: MissionEnvironment;
+  missionDay: number;
+  locale?: AppLocale;
+  onSubmit: (reading: VitalReadings) => void;
+  pendingReactionMs?: number;
+}
+
+export function VitalsInputForm({
+  environment,
+  missionDay,
+  locale = "es",
+  onSubmit,
+  pendingReactionMs,
+}: VitalsInputFormProps) {
+  const ui = UI_STRINGS[locale];
+
+  const [step, setStep] = useState(0);
+  const [streak, setStreak] = useState(0);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) setStreak(parseInt(raw, 10) || 0);
+    } catch {
+      /* offline / private mode */
+    }
+  }, []);
+  const [preview, setPreview] = useState<string | undefined>();
+  const [form, setForm] = useState<Partial<VitalReadings>>({
+    environment,
+    missionDay,
+    moodScore: 4,
+    stressLevel: 4,
+    radiationMsv: 0.5,
+  });
+
+  const currentMetric = STEP_METRICS[step];
+  const isMoodStep = currentMetric === "moodScore";
+  const vitalsKey = currentMetric as keyof typeof ui.vitals;
+  const currentLabel = ui.vitals[vitalsKey] ?? currentMetric;
+
+  const guide = useMemo(() => {
+    if (!currentMetric) return null;
+    return MEASUREMENT_GUIDE_LOCALE[locale][currentMetric];
+  }, [currentMetric, locale]);
+
+  const updateField = useCallback((key: string, value: number) => {
+    setForm((f) => ({ ...f, [key]: value }));
+  }, []);
+
+  function onImageChange(file: File | null) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const url = typeof reader.result === "string" ? reader.result : undefined;
+      setPreview(url);
+      setForm((f) => ({ ...f, imageNoteOrDataUrl: url }));
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function bumpStreak() {
+    const next = streak + 1;
+    setStreak(next);
+    try {
+      localStorage.setItem(STORAGE_KEY, String(next));
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function submitAll() {
+    let reactionMs = pendingReactionMs;
+    if (reactionMs === undefined) {
+      try {
+        const raw = localStorage.getItem(REACTION_KEY);
+        if (raw) reactionMs = parseInt(raw, 10);
+      } catch {
+        /* ignore */
+      }
+    }
+
+    const extraMetrics: Record<string, number | string> = {
+      ...(form.extraMetrics ?? {}),
+    };
+    if (reactionMs !== undefined && Number.isFinite(reactionMs)) {
+      extraMetrics.reactionTimeMs = reactionMs;
+    }
+
+    const reading: VitalReadings = {
+      missionDay,
+      recordedAt: new Date().toISOString(),
+      environment,
+      systolicBP: Number(form.systolicBP ?? 120),
+      diastolicBP: Number(form.diastolicBP ?? 80),
+      heartRate: Number(form.heartRate ?? 72),
+      bloodSugar: Number(form.bloodSugar ?? 100),
+      temperature: Number(form.temperature ?? 36.7),
+      sleepHours: Number(form.sleepHours ?? 7),
+      moodScore: Number(form.moodScore ?? 4),
+      radiationMsv: form.radiationMsv !== undefined ? Number(form.radiationMsv) : undefined,
+      stressLevel: form.stressLevel !== undefined ? Number(form.stressLevel) : undefined,
+      imageNoteOrDataUrl: form.imageNoteOrDataUrl,
+      extraMetrics: Object.keys(extraMetrics).length ? extraMetrics : undefined,
+    };
+    bumpStreak();
+    onSubmit(reading);
+  }
+
+  const moodValue = form.moodScore ?? 4;
+  const streakStyles = statusStyles(streak >= 7 ? "normal" : "warning");
+  const streakText = `${streak} ${ui.streak}`;
+
+  const stressValue = form.stressLevel ?? 4;
+  const fieldId = `vital-${currentMetric}`;
+  const stressOutputId = "stress-level-output";
+  const progressPct = Math.round(((step + 1) / STEP_METRICS.length) * 100);
+
+  return (
+    <div className="mission-panel p-4">
+      <div className="mb-4 flex items-center justify-between gap-2">
+        <h3 className="text-lg font-semibold">{ui.dailyCheckIn}</h3>
+        <div
+          className={`badge gap-2 ${streakStyles.bg} ${streakStyles.text}`}
+          aria-label={streakText}
+        >
+          <Flame className="h-4 w-4" aria-hidden />
+          {streakText}
+        </div>
+      </div>
+
+      <label htmlFor={fieldId} className="mb-2 block text-sm text-base-content/80">
+        {ui.stepOf} {step + 1} {ui.of} {STEP_METRICS.length}: {currentLabel}
+      </label>
+      <progress
+        className="progress progress-primary mb-4 w-full"
+        value={progressPct}
+        max={100}
+        aria-label={`${ui.stepOf} ${step + 1} ${ui.of} ${STEP_METRICS.length}`}
+      />
+
+      {guide && (
+        <div className="mb-4 rounded-box border border-base-300 bg-base-100/80 p-3 text-sm text-base-content/85">
+          <p className="font-medium text-base-content">{ui.howToMeasure}</p>
+          <p className="mt-1">{guide.howTo}</p>
+          <p className="mt-2 font-medium text-base-content">{ui.whyInSpace}</p>
+          <p className="mt-1">{guide.whySpace}</p>
+        </div>
+      )}
+
+      <fieldset className="min-w-0">
+        <legend className="sr-only">{currentLabel}</legend>
+
+        {isMoodStep ? (
+          <div role="radiogroup" aria-labelledby={fieldId} className="flex flex-wrap gap-2">
+            {[1, 2, 3, 4, 5].map((n) => (
+              <button
+                key={n}
+                type="button"
+                role="radio"
+                aria-checked={moodValue === n}
+                onClick={() => updateField("moodScore", n)}
+                className={`btn btn-sm ${
+                  moodValue === n ? "btn-success" : "btn-outline"
+                }`}
+              >
+                {n} — {ui.mood[n - 1]}
+              </button>
+            ))}
+          </div>
+        ) : currentMetric === "stressLevel" ? (
+          <div className="space-y-2">
+            <input
+              id={fieldId}
+              type="range"
+              min={1}
+              max={10}
+              step={1}
+              value={stressValue}
+              aria-valuemin={1}
+              aria-valuemax={10}
+              aria-valuenow={stressValue}
+              aria-describedby={stressOutputId}
+              onChange={(e) => updateField("stressLevel", Number(e.target.value))}
+              className="range range-primary w-full"
+            />
+            <p
+              id={stressOutputId}
+              className="text-center text-lg font-semibold"
+              aria-live="polite"
+            >
+              <span className="sr-only">{ui.stressValueLabel}: </span>
+              {stressValue} / 10
+            </p>
+          </div>
+        ) : (
+          <input
+            id={fieldId}
+            type="number"
+            inputMode="decimal"
+            aria-required="true"
+            step={
+              currentMetric === "temperature" ||
+              currentMetric === "sleepHours" ||
+              currentMetric === "radiationMsv"
+                ? 0.1
+                : 1
+            }
+            className="input input-bordered w-full"
+            value={
+              currentMetric === "radiationMsv"
+                ? (form.radiationMsv ?? "")
+                : ((form[currentMetric as keyof VitalReadings] as number) ?? "")
+            }
+            onChange={(e) => updateField(currentMetric, Number(e.target.value))}
+          />
+        )}
+      </fieldset>
+
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        <label htmlFor="vital-image-upload" className="btn btn-sm btn-outline gap-2">
+          <Camera className="h-4 w-4" aria-hidden />
+          {ui.vitalsFileLabel}
+          <input
+            id="vital-image-upload"
+            type="file"
+            accept="image/*"
+            className="sr-only"
+            onChange={(e) => onImageChange(e.target.files?.[0] ?? null)}
+          />
+        </label>
+        {preview && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={preview}
+            alt={ui.uploadPreview}
+            className="h-12 w-12 rounded object-cover"
+          />
+        )}
+      </div>
+
+      <div className="mt-6 flex justify-between gap-2">
+        <button
+          type="button"
+          disabled={step === 0}
+          onClick={() => setStep((s) => Math.max(0, s - 1))}
+          className="btn btn-outline"
+        >
+          {ui.back}
+        </button>
+        {step < STEP_METRICS.length - 1 ? (
+          <button type="button" onClick={() => setStep((s) => s + 1)} className="btn btn-primary">
+            {ui.next}
+          </button>
+        ) : (
+          <button type="button" onClick={submitAll} className="btn btn-success">
+            {ui.saveLog}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+================
+File: src/lib/locale.ts
+================
+import type {
+  EnvironmentMissionMeta,
+  HealthStatus,
+  MissionEnvironment,
+  MissionProfile,
+  SpaceflightHazard,
+  VitalsFormMetric,
+} from "@/types/health";
+
+export type AppLocale = "es" | "en";
+
+export const LOCALE_STORAGE_KEY = "healthnasa_locale";
+
+export function statusLabelForLocale(
+  locale: AppLocale,
+  status: HealthStatus
+): string {
+  const labels: Record<AppLocale, Record<HealthStatus, string>> = {
+    es: {
+      normal: "Normal",
+      warning: "Precaución",
+      critical: "Crítico",
+    },
+    en: {
+      normal: "Normal",
+      warning: "Needs attention",
+      critical: "Critical",
+    },
+  };
+  return labels[locale][status];
+}
+
+export function escalationLabel(
+  locale: AppLocale,
+  level: "self_care" | "crew_attention" | "ground_flight_surgeon"
+): string {
+  const map: Record<AppLocale, Record<typeof level, string>> = {
+    es: {
+      self_care: "autocuidado",
+      crew_attention: "atención de la tripulación",
+      ground_flight_surgeon: "cirujano de vuelo en Tierra",
+    },
+    en: {
+      self_care: "self care",
+      crew_attention: "crew attention",
+      ground_flight_surgeon: "ground flight surgeon",
+    },
+  };
+  return map[locale][level];
+}
+
+export const ENVIRONMENT_LABELS: Record<
+  AppLocale,
+  Record<MissionEnvironment, string>
+> = {
+  es: {
+    station: "Estación espacial (LEO)",
+    spacecraft: "Nave en tránsito profundo",
+    rover: "Rover (Luna / Marte EVA)",
+    lunar_base: "Base lunar (polo sur)",
+    mars_base: "Base en Marte",
+  },
+  en: {
+    station: "Space station (LEO)",
+    spacecraft: "Deep-space transit",
+    rover: "Rover (lunar / Mars EVA)",
+    lunar_base: "Lunar south-pole base",
+    mars_base: "Mars surface base",
+  },
+};
+
+export const BODY_REGION_COPY: Record<
+  AppLocale,
+  Record<
+    "neuro_behavioral" | "cardiovascular" | "metabolic" | "immune_musculoskeletal",
+    { label: string; summary: string }
+  >
+> = {
+  es: {
+    neuro_behavioral: {
+      label: "Cabeza / neuroconductual",
+      summary: "Sueño, ánimo, concentración y regulación del estrés.",
+    },
+    cardiovascular: {
+      label: "Corazón / cardiovascular",
+      summary: "Presión arterial, frecuencia cardíaca y circulación.",
+    },
+    metabolic: {
+      label: "Abdomen / metabólico",
+      summary: "Glucosa, temperatura y balance energético.",
+    },
+    immune_musculoskeletal: {
+      label: "Extremidades / inmune y musculoesquelético",
+      summary: "Fuerza, efectos de radiación y recuperación.",
+    },
+  },
+  en: {
+    neuro_behavioral: {
+      label: "Head / neuro-behavioral",
+      summary: "Sleep, mood, focus, and stress regulation.",
+    },
+    cardiovascular: {
+      label: "Heart / cardiovascular",
+      summary: "Blood pressure, heart rate, and circulation.",
+    },
+    metabolic: {
+      label: "Abdomen / metabolic",
+      summary: "Glucose, temperature, and energy balance.",
+    },
+    immune_musculoskeletal: {
+      label: "Limbs / immune & musculoskeletal",
+      summary: "Strength, radiation exposure effects, and recovery.",
+    },
+  },
+};
+
+export const HAZARD_DISPLAY: Record<
+  AppLocale,
+  Record<
+    SpaceflightHazard,
+    { title: string; shortDescription: string }
+  >
+> = {
+  es: {
+    radiation: {
+      title: "Radiación",
+      shortDescription:
+        "Fuera del campo magnético terrestre, la radiación cósmica y solar aumenta el riesgo a largo plazo.",
+    },
+    isolation: {
+      title: "Aislamiento y confinamiento",
+      shortDescription:
+        "Tripulaciones pequeñas y lejos de casa pueden afectar sueño, ánimo y coordinación.",
+    },
+    distance: {
+      title: "Distancia desde la Tierra",
+      shortDescription:
+        "La ayuda desde Tierra llega con retraso; la tripulación debe detectar y responder localmente.",
+    },
+    gravity: {
+      title: "Gravedad alterada",
+      shortDescription:
+        "La microgravedad y la gravedad lunar cambian fluidos, huesos y músculos.",
+    },
+    closed_environment: {
+      title: "Ambiente cerrado",
+      shortDescription:
+        "Aire y agua reciclados, ruido y CO₂ pueden afectar sueño y metabolismo.",
+    },
+  },
+  en: {
+    radiation: {
+      title: "Radiation",
+      shortDescription:
+        "Outside Earth's magnetic field, cosmic and solar radiation increase long-term health risk.",
+    },
+    isolation: {
+      title: "Isolation & confinement",
+      shortDescription:
+        "Small crews far from home can affect sleep, mood, and team coordination.",
+    },
+    distance: {
+      title: "Distance from Earth",
+      shortDescription:
+        "Help from Earth is delayed; crews must detect and respond to health issues locally.",
+    },
+    gravity: {
+      title: "Altered gravity",
+      shortDescription:
+        "Microgravity and lunar gravity change fluids, bones, and muscles.",
+    },
+    closed_environment: {
+      title: "Closed environment",
+      shortDescription:
+        "Recycled air and water, noise, and CO₂ can affect sleep and metabolism.",
+    },
+  },
+};
+
+export const MISSION_PROFILE: Record<AppLocale, MissionProfile> = {
+  es: {
+    missionName: "Artemis — Misión lunar",
+    commanderRole: "Comandante Artemis",
+    medicalOfficerRole: "Oficial médico de tripulación",
+    program: "NASA Human Research Program (HRP)",
+  },
+  en: {
+    missionName: "Artemis — Lunar mission",
+    commanderRole: "Artemis Commander",
+    medicalOfficerRole: "Crew Medical Officer",
+    program: "NASA Human Research Program (HRP)",
+  },
+};
+
+export const ENVIRONMENT_MISSION_META: Record<
+  AppLocale,
+  Record<MissionEnvironment, EnvironmentMissionMeta>
+> = {
+  es: {
+    station: {
+      latencyLabel: "~0,5 s (LEO / EEI)",
+      latencyMs: 500,
+      primaryHazards: ["gravity", "closed_environment"],
+      autonomyNote:
+        "El retraso es bajo, pero la tripulación debe seguir evaluándose sin depender de Tierra en emergencias.",
+      habitatName: "Módulos ISS / Gateway acoplados",
+      operationsContext:
+        "Microgravedad continua, ciclos de sueño fragmentados y CO₂ de cabina monitorizados por hora.",
+      healthFocus:
+        "Desacondicionamiento cardiovascular, visión por fluidos y fatiga por ruido/iluminación.",
+      scenarioContext:
+        "Puedes activar varios escenarios a la vez; la radiación solar suma a la de fondo y el cardio refleja pérdida de volumen.",
+    },
+    spacecraft: {
+      latencyLabel: "4–20 min (ida) — tránsito",
+      latencyMs: 600_000,
+      primaryHazards: ["radiation", "distance", "isolation"],
+      autonomyNote:
+        "La telemedicina en tiempo real no es posible; las reglas locales de escalación son obligatorias.",
+      habitatName: "Cápsula Orion / nave de tránsito",
+      operationsContext:
+        "Tripulación reducida, comunicación diferida y GCR elevada fuera del magnetosfera.",
+      healthFocus: "Radiación acumulada, estado de ánimo y sueño con turnos largos.",
+      scenarioContext:
+        "Aislamiento y eventos solares se superponen con frecuencia; la escalación local prevalece sobre Tierra.",
+    },
+    rover: {
+      latencyLabel: "~2,6 s ida y vuelta (EVA lunar)",
+      latencyMs: 2600,
+      primaryHazards: ["radiation", "gravity"],
+      autonomyNote:
+        "En superficie, cada minuto cuenta; la autoevaluación guiada reemplaza la respuesta inmediata desde Tierra.",
+      habitatName: "Rover presurizado / traje EVA",
+      operationsContext:
+        "Gravedad parcial (Luna o Marte), polvo, temperatura extrema y ventanas cortas de comunicación.",
+      healthFocus:
+        "Frecuencia cardíaca con esfuerzo, hidratación en traje y fatiga musculoesquelética.",
+      scenarioContext:
+        "Cardio por deshidratación y radiación en EVA pueden coexistir; apaga cada escenario sin resetear los demás.",
+    },
+    lunar_base: {
+      latencyLabel: "~2,6 s ida y vuelta (base polo sur)",
+      latencyMs: 2600,
+      primaryHazards: ["radiation", "isolation", "closed_environment"],
+      autonomyNote:
+        "La base Artemis opera con latencia; el monitoreo offline-first permite decisiones antes de sincronizar con Tierra.",
+      habitatName: "Hábitat Artemis polo sur",
+      operationsContext:
+        "Noches largas, reciclaje de aire/agua y turnos interiores extendidos.",
+      healthFocus: "Sueño circadiano, inmunidad en cabina cerrada y dosis lunar acumulada.",
+      scenarioContext:
+        "Deriva circadiana y clima cerrado amplifican eventos solares si varios escenarios están encendidos.",
+    },
+    mars_base: {
+      latencyLabel: "8–22 min ida (Marte)",
+      latencyMs: 18 * 60 * 1000,
+      primaryHazards: ["radiation", "distance", "isolation", "closed_environment"],
+      autonomyNote:
+        "Marte impone latencia de minutos; la tripulación opera con médico a bordo y reglas HRP locales.",
+      habitatName: "Campamento superficie marciana",
+      operationsContext:
+        "Presión atmosférica baja fuera, polvo perchlorato y comunicaciones no sincrónicas con Tierra.",
+      healthFocus:
+        "Radiación GCR/SPE, densidad ósea en gravedad reducida y salud conductual en confinamiento largo.",
+      scenarioContext:
+        "Los tres escenarios simulados son comunes en campamentos marcianos y pueden permanecer activos simultáneamente.",
+    },
+  },
+  en: {
+    station: {
+      latencyLabel: "~0.5 s (LEO / ISS)",
+      latencyMs: 500,
+      primaryHazards: ["gravity", "closed_environment"],
+      autonomyNote:
+        "Delay is low, but crews still need self-assessment when ground support is busy or unavailable.",
+      habitatName: "ISS / Gateway stack",
+      operationsContext:
+        "Continuous microgravity, fragmented sleep cycles, and hourly cabin CO₂ monitoring.",
+      healthFocus:
+        "Cardiovascular deconditioning, fluid-shift vision issues, and noise/light fatigue.",
+      scenarioContext:
+        "You can run multiple scenarios together; solar events stack on background dose and cardio reflects volume loss.",
+    },
+    spacecraft: {
+      latencyLabel: "4–20 min one-way — deep transit",
+      latencyMs: 600_000,
+      primaryHazards: ["radiation", "distance", "isolation"],
+      autonomyNote:
+        "Real-time telemedicine is not possible; local escalation rules must drive urgent decisions.",
+      habitatName: "Orion CM / transit vehicle",
+      operationsContext:
+        "Small crew, delayed comms, and elevated GCR outside the magnetosphere.",
+      healthFocus: "Cumulative radiation, mood, and sleep on long watches.",
+      scenarioContext:
+        "Isolation and solar storms often overlap; local escalation outruns ground consult.",
+    },
+    rover: {
+      latencyLabel: "~2.6 s round-trip (lunar EVA)",
+      latencyMs: 2600,
+      primaryHazards: ["radiation", "gravity"],
+      autonomyNote:
+        "On the surface, minutes matter; guided self-assessment replaces instant ground response.",
+      habitatName: "Pressurized rover / EVA suit",
+      operationsContext:
+        "Partial gravity (Moon or Mars), dust, thermal swings, and narrow comm windows.",
+      healthFocus: "Exercise heart rate, suit hydration, and musculoskeletal fatigue.",
+      scenarioContext:
+        "Dehydration cardio and EVA radiation can run together; turn each scenario off without clearing the others.",
+    },
+    lunar_base: {
+      latencyLabel: "~2.6 s round-trip (south pole base)",
+      latencyMs: 2600,
+      primaryHazards: ["radiation", "isolation", "closed_environment"],
+      autonomyNote:
+        "Artemis habitats run with link latency; offline-first monitoring enables action before ground sync.",
+      habitatName: "Artemis south-pole habitat",
+      operationsContext: "Long nights, air/water recycling, and extended indoor shifts.",
+      healthFocus: "Circadian sleep, closed-cabin immunity, and accumulated lunar dose.",
+      scenarioContext:
+        "Circadian drift and closed ecology amplify solar stress when several simulations are on.",
+    },
+    mars_base: {
+      latencyLabel: "8–22 min one-way (Mars)",
+      latencyMs: 18 * 60 * 1000,
+      primaryHazards: ["radiation", "distance", "isolation", "closed_environment"],
+      autonomyNote:
+        "Mars imposes minute-scale delay; crews rely on onboard medical officers and local HRP rules.",
+      habitatName: "Mars surface camp",
+      operationsContext:
+        "Low outdoor pressure, perchlorate dust, and non-synchronous Earth comms.",
+      healthFocus:
+        "GCR/SPE radiation, bone density at reduced gravity, and behavioral health in long confinement.",
+      scenarioContext:
+        "All three mission scenarios are plausible on Mars and may stay enabled at the same time.",
+    },
+  },
+};
+
+export const MEASUREMENT_GUIDE_LOCALE: Record<
+  AppLocale,
+  Record<VitalsFormMetric, { howTo: string; whySpace: string }>
+> = {
+  es: {
+    systolicBP: {
+      howTo: "Siéntate en calma 2 minutos. Usa el brazalete a nivel del corazón. Anota el número superior.",
+      whySpace: "Los cambios de fluidos en microgravedad pueden alterar la presión arterial.",
+    },
+    diastolicBP: {
+      howTo: "Usa la misma lectura del brazalete. Anota el número inferior.",
+      whySpace: "Ayuda a seguir la adaptación cardiovascular durante la misión.",
+    },
+    heartRate: {
+      howTo: "Cuenta pulsaciones 30 s y multiplica por 2, o usa un wearable.",
+      whySpace: "Estrés, carga de trabajo y desacondicionamiento afectan la FC en el espacio.",
+    },
+    bloodSugar: {
+      howTo: "Usa el glucómetro según la ventana de ayuno o comida del protocolo.",
+      whySpace: "La dieta y el ejercicio en vuelo pueden cambiar la glucosa.",
+    },
+    temperature: {
+      howTo: "Usa termómetro frontal u ótico según el kit.",
+      whySpace: "Fiebre o hipotermia pueden indicar infección en cabina cerrada.",
+    },
+    sleepHours: {
+      howTo: "Estima las horas realmente dormidas en las últimas 24 h.",
+      whySpace: "Ciclos de luz y ruido dificultan el sueño en estación o tránsito.",
+    },
+    moodScore: {
+      howTo: "Elige la cara que refleje cómo te sientes hoy (1 = muy bajo, 5 = excelente).",
+      whySpace: "El ánimo refleja estrés por aislamiento y ayuda a coordinar la tripulación.",
+    },
+    radiationMsv: {
+      howTo:
+        "Lee la dosis del dosímetro personal o del monitor de cabina. Anota la exposición diaria en mSv.",
+      whySpace:
+        "Fuera del escudo magnético terrestre, la dosis guía refugios durante eventos de partículas solares.",
+    },
+    stressLevel: {
+      howTo:
+        "Califica el estrés percibido de 1 (calma) a 10 (extremo) con la escala de bienestar de la tripulación.",
+      whySpace:
+        "El aislamiento, la carga de trabajo y la radiación aumentan el estrés; detectarlo temprano protege el rendimiento.",
+    },
+  },
+  en: {
+    systolicBP: {
+      howTo: "Sit calmly for 2 minutes. Use the automated cuff at heart level. Record the top number.",
+      whySpace: "Fluid shifts in microgravity can change blood pressure readings.",
+    },
+    diastolicBP: {
+      howTo: "Use the same cuff reading. Record the bottom number.",
+      whySpace: "Helps track cardiovascular adaptation during the mission.",
+    },
+    heartRate: {
+      howTo: "Count beats for 30 seconds and multiply by 2, or use a wearable.",
+      whySpace: "Stress, workload, and deconditioning affect heart rate in space.",
+    },
+    bloodSugar: {
+      howTo: "Use a glucose meter after the protocol fast or meal window.",
+      whySpace: "Diet changes and exercise schedules can shift glucose in flight.",
+    },
+    temperature: {
+      howTo: "Use the forehead or ear thermometer per kit instructions.",
+      whySpace: "Fever or low temperature may signal infection in a closed cabin.",
+    },
+    sleepHours: {
+      howTo: "Estimate time actually asleep during the last 24 hours.",
+      whySpace: "Light cycles and noise make sleep harder on station or transit.",
+    },
+    moodScore: {
+      howTo: "Tap the face that matches how you feel today (1 = very low, 5 = great).",
+      whySpace: "Mood tracks isolation stress and helps the crew stay coordinated.",
+    },
+    radiationMsv: {
+      howTo:
+        "Read today's dose from your dosimeter or cabin monitor. Enter daily exposure in mSv.",
+      whySpace:
+        "Beyond Earth's magnetic shield, dose tracking drives shelter calls during solar particle events.",
+    },
+    stressLevel: {
+      howTo:
+        "Rate perceived stress from 1 (calm) to 10 (extreme) using the crew wellness scale.",
+      whySpace:
+        "Isolation, workload, and radiation awareness compound stress; early scores guide crew support.",
+    },
+  },
+};
+
+export const EVALUATOR_COPY: Record<
+  AppLocale,
+  {
+    systemNormal: string;
+    systemWarning: string;
+    headlines: {
+      ground: string;
+      crew: string;
+      ok: string;
+    };
+    guidance: {
+      cardio: { why: string; actions: string[] };
+      neuro: { why: string; actions: string[] };
+      metabolic: { why: string; actions: string[] };
+      default: { why: string; actions: string[] };
+    };
+  }
+> = {
+  es: {
+    systemNormal: "Dentro del rango esperado para esta fase de misión.",
+    systemWarning: "Una o más lecturas requieren revisión.",
+    headlines: {
+      ground: "Escalar al cirujano de vuelo en Tierra",
+      crew: "Se recomienda atención médica de tripulación",
+      ok: "En curso — mantener rutina diaria",
+    },
+    guidance: {
+      cardio: {
+        why: "Los cambios cardiovasculares son comunes en microgravedad, pero picos bruscos requieren acción.",
+        actions: [
+          "Revisar presión arterial tras 5 minutos de reposo.",
+          "Revisar hidratación y ejercicio del día.",
+          "Informar al médico de tripulación si se repite la lectura.",
+        ],
+      },
+      neuro: {
+        why: "Sueño y ánimo son señales tempranas de estrés por aislamiento en misiones largas.",
+        actions: [
+          "Proteger una ventana de sueño de 7 h esta noche.",
+          "Revisar carga de trabajo con la tripulación.",
+          "Usar el protocolo de relajación antes de dormir.",
+        ],
+      },
+      metabolic: {
+        why: "Cambios metabólicos pueden reflejar la cabina o una enfermedad incipiente.",
+        actions: [
+          "Confirmar horarios de comida e hidratación.",
+          "Tomar temperatura de nuevo en 30 minutos.",
+          "Contactar cirujano en Tierra si persisten fiebre o glucosa alta.",
+        ],
+      },
+      default: {
+        why: "Vitales regulares mantienen a la tripulación lista cuando la ayuda desde Tierra está lejos.",
+        actions: [
+          "Continuar la rutina de registro diario.",
+          "Anotar cualquier síntoma nuevo en notas.",
+        ],
+      },
+    },
+  },
+  en: {
+    systemNormal: "Within expected range for this mission phase.",
+    systemWarning: "One or more readings need a closer look.",
+    headlines: {
+      ground: "Escalate to ground flight surgeon",
+      crew: "Crew medical attention recommended",
+      ok: "On track — maintain daily routine",
+    },
+    guidance: {
+      cardio: {
+        why: "Cardiovascular shifts are common in microgravity but sudden spikes need action.",
+        actions: [
+          "Re-check blood pressure after 5 minutes of rest.",
+          "Review hydration and today's exercise completion.",
+          "Inform crew medical officer if reading repeats.",
+        ],
+      },
+      neuro: {
+        why: "Sleep and mood are early signals of isolation stress on long missions.",
+        actions: [
+          "Protect a 7-hour sleep window tonight.",
+          "Brief crew check-in on workload.",
+          "Use relaxation protocol before sleep.",
+        ],
+      },
+      metabolic: {
+        why: "Metabolic changes can reflect cabin environment or emerging illness.",
+        actions: [
+          "Confirm meal timing and hydration log.",
+          "Take temperature again in 30 minutes.",
+          "Contact ground surgeon if fever or glucose stays high.",
+        ],
+      },
+      default: {
+        why: "Regular vitals keep the crew ready when help from Earth is far away.",
+        actions: [
+          "Continue daily check-in routine.",
+          "Log any new symptoms in notes.",
+        ],
+      },
+    },
+  },
+};
+
+export const UI_STRINGS = {
+  es: {
+    metaTitle: "Control de salud de misión | NASA Space Apps",
+    metaDescription:
+      "Monitoreo de salud del astronauta sin conexión para misiones espaciales.",
+    appTitle: "Control de salud de misión",
+    appSubtitle: "NASA Space Apps — monitoreo del astronauta (offline-first)",
+    switchToEnglish: "English",
+    simulateCritical: "Simular escenario crítico",
+    simulateSolarEvent: "Evento de partículas solares",
+    simulateCardioDehydration: "Cardio / deshidratación",
+    simulateIsolationDrift: "Aislamiento y ritmo circadiano",
+    resetBaseline: "Restablecer línea base",
+    artemisProfile: "Perfil de tripulación Artemis",
+    communicationLatency: "Latencia de comunicación",
+    activeEnvironmentRisks: "Riesgos dominantes del entorno",
+    whyAutonomous: "Por qué la autoevaluación autónoma",
+    hrpRisksLabel: "Riesgos HRP asociados",
+    officialReferences: "Referencias oficiales NASA / CSA",
+    chartRadiation: "Exposición a radiación (mSv)",
+    radiationCautionLine: "Umbral de precaución NASA/CSA (1,0 mSv/día)",
+    readinessPoints: "Puntos de preparación",
+    dailyCountermeasures: "Contramedidas diarias",
+    reactionTest: "Prueba cognitiva de reacción",
+    reactionTestHint: "Toca cuando el objetivo se ponga verde esmeralda.",
+    reactionStart: "Iniciar prueba",
+    reactionWait: "Espera…",
+    reactionTap: "¡Ahora!",
+    reactionResult: "Tiempo medio (ms)",
+    checklistResistiveExercise: "Ejercicio resistivo",
+    checklistHydration: "Protocolo de hidratación",
+    checklistSleep: "Higiene del sueño",
+    checklistRadiation: "Refugio / dosímetro",
+    checklistCabin: "CO₂ / temperatura de cabina",
+    missionDay: "Día",
+    recommendedActions: "Acciones recomendadas",
+    escalation: "Escalación",
+    missionTimeline: "Línea de tiempo de la misión",
+    logVitals: "Registrar signos vitales",
+    missionEnvironment: "Entorno de misión",
+    chartCardio: "Tendencia cardiovascular",
+    chartRecovery: "Recuperación y metabólico",
+    chartSystolic: "PA sistólica",
+    chartHeartRate: "Frecuencia cardíaca",
+    chartSleep: "Sueño (h)",
+    chartGlucose: "Glucosa",
+    bodyMapHint: "Toca una zona del cuerpo o usa los botones para ver el estado y los riesgos espaciales.",
+    bodyMapAria: "Mapa corporal humano interactivo",
+    bodyMapTitle: "Estado por sistemas corporales",
+    bodyRegionPicker: "Seleccionar región del cuerpo",
+    skipToMain: "Ir al contenido principal",
+    crewStatusLive: "Estado actual de la tripulación",
+    simulationControls: "Simulaciones de misión",
+    scenarioActive: "Activo",
+    scenarioInactive: "Listo",
+    scenarioTapToDeactivate:
+      "Varios escenarios pueden estar activos a la vez. Pulsa de nuevo para apagar solo ese escenario.",
+    activeScenariosLabel: "Escenarios activos",
+    noActiveScenarios: "Ninguno",
+    crewRoster: "Tripulación simulada (API)",
+    selectAstronaut: "Seleccionar astronauta",
+    environmentBrief: "Contexto del entorno",
+    habitatLabel: "Hábitat",
+    operationsLabel: "Operaciones",
+    healthFocusLabel: "Foco de salud",
+    mockGroundFeed: "Feed simulado de control en Tierra (Faker API)",
+    mockGroundFeedConnected: "Sincronizado",
+    bodyRegionSelected: "Seleccionado",
+    vitalsFileLabel: "Adjuntar imagen opcional",
+    stressValueLabel: "Nivel de estrés seleccionado",
+    relatedHazards: "Riesgos espaciales relacionados (NASA)",
+    dailyCheckIn: "Registro diario",
+    streak: "días seguidos — mantén tu rutina",
+    stepOf: "Paso",
+    of: "de",
+    howToMeasure: "Cómo medir",
+    whyInSpace: "Por qué importa en el espacio",
+    optionalImage: "Imagen opcional (cámara / ecografía)",
+    uploadPreview: "Vista previa de imagen",
+    back: "Atrás",
+    next: "Siguiente",
+    saveLog: "Guardar registro de hoy",
+    vitals: {
+      systolicBP: "PA sistólica",
+      diastolicBP: "PA diastólica",
+      heartRate: "Frecuencia cardíaca",
+      bloodSugar: "Glucosa",
+      temperature: "Temperatura",
+      sleepHours: "Horas de sueño",
+      moodScore: "Ánimo",
+      radiationMsv: "Radiación (mSv)",
+      stressLevel: "Nivel de estrés",
+    },
+    mood: ["Muy bajo", "Bajo", "Regular", "Bien", "Excelente"] as const,
+  },
+  en: {
+    metaTitle: "Mission Health Control | NASA Space Apps",
+    metaDescription:
+      "Offline-first astronaut health monitoring for space missions.",
+    appTitle: "Mission Health Control",
+    appSubtitle: "NASA Space Apps — astronaut monitoring (offline-first)",
+    switchToEnglish: "Español",
+    simulateCritical: "Simulate critical scenario",
+    simulateSolarEvent: "Solar particle event",
+    simulateCardioDehydration: "Cardio / dehydration",
+    simulateIsolationDrift: "Isolation & circadian drift",
+    resetBaseline: "Reset mission baseline",
+    artemisProfile: "Artemis crew profile",
+    communicationLatency: "Communication latency",
+    activeEnvironmentRisks: "Dominant environment risks",
+    whyAutonomous: "Why autonomous self-assessment",
+    hrpRisksLabel: "Associated HRP risks",
+    officialReferences: "Official NASA / CSA references",
+    chartRadiation: "Radiation exposure (mSv)",
+    radiationCautionLine: "NASA/CSA caution threshold (1.0 mSv/day)",
+    readinessPoints: "Readiness points",
+    dailyCountermeasures: "Daily countermeasures",
+    reactionTest: "Cognitive reaction test",
+    reactionTestHint: "Tap when the target turns emerald green.",
+    reactionStart: "Start test",
+    reactionWait: "Wait…",
+    reactionTap: "Tap now!",
+    reactionResult: "Average time (ms)",
+    checklistResistiveExercise: "Resistive exercise",
+    checklistHydration: "Hydration protocol",
+    checklistSleep: "Sleep hygiene",
+    checklistRadiation: "Radiation shelter / dosimeter",
+    checklistCabin: "Cabin CO₂ / temperature",
+    missionDay: "Day",
+    recommendedActions: "Recommended actions",
+    escalation: "Escalation",
+    missionTimeline: "Mission timeline",
+    logVitals: "Log vitals",
+    missionEnvironment: "Mission environment",
+    chartCardio: "Cardiovascular trend",
+    chartRecovery: "Recovery & metabolic",
+    chartSystolic: "Systolic BP",
+    chartHeartRate: "Heart rate",
+    chartSleep: "Sleep (h)",
+    chartGlucose: "Blood sugar",
+    bodyMapHint: "Tap a body region or use the buttons below to see status and related space hazards.",
+    bodyMapAria: "Interactive human body map",
+    bodyMapTitle: "Status by body system",
+    bodyRegionPicker: "Select body region",
+    skipToMain: "Skip to main content",
+    crewStatusLive: "Current crew status",
+    simulationControls: "Mission simulations",
+    scenarioActive: "Active",
+    scenarioInactive: "Ready",
+    scenarioTapToDeactivate:
+      "Multiple scenarios can run together. Tap again to turn off only that scenario.",
+    activeScenariosLabel: "Active scenarios",
+    noActiveScenarios: "None",
+    crewRoster: "Simulated crew (API)",
+    selectAstronaut: "Select astronaut",
+    environmentBrief: "Environment context",
+    habitatLabel: "Habitat",
+    operationsLabel: "Operations",
+    healthFocusLabel: "Health focus",
+    mockGroundFeed: "Mock ground-control feed (Faker API)",
+    mockGroundFeedConnected: "Synced",
+    bodyRegionSelected: "Selected",
+    vitalsFileLabel: "Attach optional image",
+    stressValueLabel: "Selected stress level",
+    relatedHazards: "Related NASA spaceflight hazards",
+    dailyCheckIn: "Daily check-in",
+    streak: "day streak — keep your routine",
+    back: "Back",
+    next: "Next",
+    saveLog: "Save today's log",
+    stepOf: "Step",
+    of: "of",
+    howToMeasure: "How to measure",
+    whyInSpace: "Why in space",
+    optionalImage: "Optional image (camera / ultrasound note)",
+    uploadPreview: "Upload preview",
+    vitals: {
+      systolicBP: "Systolic BP",
+      diastolicBP: "Diastolic BP",
+      heartRate: "Heart rate",
+      bloodSugar: "Blood sugar",
+      temperature: "Temperature",
+      sleepHours: "Sleep hours",
+      moodScore: "Mood",
+      radiationMsv: "Radiation (mSv)",
+      stressLevel: "Stress level",
+    },
+    mood: ["Very low", "Low", "Okay", "Good", "Great"] as const,
+  },
+} as const;
+
+================
+File: src/types/health.ts
+================
+/** NASA Human Research Program–style spaceflight hazards */
+export type SpaceflightHazard =
+  | "radiation"
+  | "isolation"
+  | "distance"
+  | "gravity"
+  | "closed_environment";
+
+export type MissionEnvironment =
+  | "spacecraft"
+  | "station"
+  | "rover"
+  | "lunar_base"
+  | "mars_base";
+
+export type HealthStatus = "normal" | "warning" | "critical";
+
+export type EscalationLevel =
+  | "self_care"
+  | "crew_attention"
+  | "ground_flight_surgeon";
+
+export type BodySystemStatus =
+  | "cardiovascular"
+  | "neuro_behavioral"
+  | "metabolic"
+  | "immune_musculoskeletal";
+
+/** Demo mission scenario toggles in the dashboard simulation row */
+export type MissionScenarioId = "solar" | "cardio" | "isolation";
+
+export type AstronautHealthArchetype =
+  | "healthy"
+  | "cardio_warning"
+  | "radiation_exposure"
+  | "isolation_stress"
+  | "metabolic_drift"
+  | "multi_system_critical";
+
+export interface MockAstronautProfile {
+  id: string;
+  callSign: string;
+  fullName: string;
+  agency: string;
+  role: string;
+  archetype: AstronautHealthArchetype;
+  homeEnvironment: MissionEnvironment;
+  /** Optional demo scenarios that match this crew member's chart */
+  typicalScenarios: MissionScenarioId[];
+}
+
+export interface OfficialReferenceLink {
+  label: string;
+  url: string;
+}
+
+export interface MissionProfile {
+  missionName: string;
+  commanderRole: string;
+  medicalOfficerRole: string;
+  program: string;
+}
+
+export interface VitalReadings {
+  missionDay: number;
+  recordedAt: string;
+  environment: MissionEnvironment;
+  systolicBP: number;
+  diastolicBP: number;
+  heartRate: number;
+  bloodSugar: number;
+  temperature: number;
+  sleepHours: number;
+  moodScore: number;
+  radiationMsv?: number;
+  /** 1 = calm, 10 = extreme stress */
+  stressLevel?: number;
+  imageNoteOrDataUrl?: string;
+  extraMetrics?: Record<string, number | string>;
+}
+
+export interface SystemStatusEntry {
+  system: BodySystemStatus;
+  status: HealthStatus;
+  summary: string;
+}
+
+export interface ActionableGuidance {
+  whyNeededInSpace: string;
+  hazardImpact: SpaceflightHazard[];
+  recommendedActions: string[];
+}
+
+export interface HealthEvaluation {
+  overallStatus: HealthStatus;
+  escalationLevel: EscalationLevel;
+  systemStatuses: SystemStatusEntry[];
+  guidance: ActionableGuidance[];
+  headline: string;
+}
+
+export interface HazardKnowledgeBlock {
+  hazard: SpaceflightHazard;
+  title: string;
+  shortDescription: string;
+  whyMonitorInSpace: string;
+  whatCanBeMeasured: string[];
+  preventiveActions: string[];
+  relatedSystems: BodySystemStatus[];
+  hrpRisks?: string[];
+  officialLinks?: OfficialReferenceLink[];
+}
+
+export type VitalsFormMetric =
+  | keyof Pick<
+      VitalReadings,
+      | "systolicBP"
+      | "diastolicBP"
+      | "heartRate"
+      | "bloodSugar"
+      | "temperature"
+      | "sleepHours"
+      | "moodScore"
+    >
+  | "radiationMsv"
+  | "stressLevel";
+
+export interface ExamThreshold {
+  metric: VitalsFormMetric;
+  normal: { min?: number; max?: number };
+  warning: { min?: number; max?: number };
+  unit: string;
+  label: string;
+}
+
+export interface EnvironmentMissionMeta {
+  latencyLabel: string;
+  latencyMs: number;
+  primaryHazards: SpaceflightHazard[];
+  autonomyNote: string;
+  habitatName: string;
+  operationsContext: string;
+  healthFocus: string;
+  scenarioContext: string;
+}
+
+================
+File: package.json
+================
+{
+  "name": "healthnasa",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@emmorts/body-muscles": "^2.1.1",
+    "@faker-js/faker": "^10.6.0",
+    "lucide-react": "^1.73.0",
+    "next": "16.4.6",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "recharts": "^3.10.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/turbopack": "4.3.3",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "daisyui": "^5.8.0",
+    "eslint": "^9",
+    "eslint-config-next": "16.4.6",
+    "tailwindcss": "4.3.3",
+    "typescript": "^5"
+  }
+}
+
+================
+File: src/features/body-map/BodyMap.tsx
+================
+"use client";
+
+import { useCallback, useMemo, useState } from "react";
+import { ExternalLink } from "lucide-react";
+import type { MuscleId } from "@emmorts/body-muscles";
+import { NASA_HAZARDS_KNOWLEDGE } from "@/data/nasaKnowledge";
+import {
+  BODY_REGION_COPY,
+  HAZARD_DISPLAY,
+  statusLabelForLocale,
+  type AppLocale,
+  UI_STRINGS,
+} from "@/lib/locale";
+import { statusStyles } from "@/lib/statusColors";
+import type { BodySystemStatus, HealthStatus, SystemStatusEntry } from "@/types/health";
+import { BodyMuscleChart } from "./BodyMuscleChart";
+import { buildBodyMuscleState, muscleIdToBodySystem } from "./buildBodyMuscleState";
+
+type RegionId = BodySystemStatus;
+
+const REGION_IDS: RegionId[] = [
+  "neuro_behavioral",
+  "cardiovascular",
+  "metabolic",
+  "immune_musculoskeletal",
+];
+
+interface BodyMapProps {
+  systemStatuses: SystemStatusEntry[];
+  locale?: AppLocale;
+}
+
+export function BodyMap({ systemStatuses, locale = "es" }: BodyMapProps) {
+  const ui = UI_STRINGS[locale];
+  const regions = BODY_REGION_COPY[locale];
+
+  const statusBySystem = useMemo(() => {
+    const m = new Map<BodySystemStatus, HealthStatus>();
+    for (const s of systemStatuses) m.set(s.system, s.status);
+    return m;
+  }, [systemStatuses]);
+
+  const [selected, setSelected] = useState<RegionId>("cardiovascular");
+  const regionCopy = regions[selected];
+  const status = statusBySystem.get(selected) ?? "normal";
+  const styles = statusStyles(status);
+
+  const bodyState = useMemo(
+    () => buildBodyMuscleState(systemStatuses, selected),
+    [systemStatuses, selected]
+  );
+
+  const relatedHazards = NASA_HAZARDS_KNOWLEDGE.filter((h) =>
+    h.relatedSystems.includes(selected)
+  );
+
+  const onMuscleActivate = useCallback((id: MuscleId) => {
+    const system = muscleIdToBodySystem(id);
+    if (system) setSelected(system);
+  }, []);
+
+  function selectRegion(id: RegionId) {
+    setSelected(id);
+  }
+
+  function onRegionKeyDown(
+    event: React.KeyboardEvent<HTMLButtonElement>,
+    id: RegionId
+  ) {
+    const index = REGION_IDS.indexOf(id);
+    if (index < 0) return;
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+      event.preventDefault();
+      selectRegion(REGION_IDS[(index + 1) % REGION_IDS.length]);
+    } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+      event.preventDefault();
+      selectRegion(REGION_IDS[(index - 1 + REGION_IDS.length) % REGION_IDS.length]);
+    }
+  }
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      <div className="mission-panel p-4">
+        <div
+          role="radiogroup"
+          aria-label={ui.bodyRegionPicker}
+          className="mb-3 flex flex-wrap gap-2"
+        >
+          {REGION_IDS.map((id) => {
+            const st = statusBySystem.get(id) ?? "normal";
+            const regionLabel = regions[id].label;
+            const statusText = statusLabelForLocale(locale, st);
+            const isSelected = selected === id;
+            const stStyles = statusStyles(st);
+            return (
+              <button
+                key={id}
+                type="button"
+                role="radio"
+                aria-checked={isSelected}
+                aria-label={`${regionLabel}, ${statusText}${
+                  isSelected ? `, ${ui.bodyRegionSelected}` : ""
+                }`}
+                onClick={() => selectRegion(id)}
+                onKeyDown={(e) => onRegionKeyDown(e, id)}
+                className={`btn btn-xs sm:btn-sm gap-2 ${
+                  isSelected
+                    ? `btn-primary ring-2 ring-offset-2 ring-offset-base-200 ${stStyles.ring}`
+                    : "btn-outline"
+                }`}
+              >
+                <span
+                  className={`h-2 w-2 rounded-full ${stStyles.dot}`}
+                  aria-hidden
+                />
+                {regionLabel}
+                {isSelected ? (
+                  <span className="badge badge-xs border-0 bg-base-100/20 text-[10px] uppercase">
+                    {ui.bodyRegionSelected}
+                  </span>
+                ) : null}
+              </button>
+            );
+          })}
+        </div>
+
+        <BodyMuscleChart
+          bodyState={bodyState}
+          ariaLabel={ui.bodyMapAria}
+          onMuscleActivate={onMuscleActivate}
+        />
+        <p className="mt-3 text-center text-sm text-base-content/75">{ui.bodyMapHint}</p>
+      </div>
+
+      <div
+        className={`mission-panel p-4 ring-2 ${styles.ring} ${styles.bg}`}
+        aria-live="polite"
+      >
+        <div className="flex items-center gap-2">
+          <span className={`h-2.5 w-2.5 rounded-full ${styles.dot}`} aria-hidden />
+          <h3 className="text-lg font-semibold text-base-content">{regionCopy.label}</h3>
+          <span className={`ml-auto text-sm font-semibold ${styles.text}`}>
+            {statusLabelForLocale(locale, status)}
+          </span>
+        </div>
+        <p className="mt-2 text-sm text-base-content/85">{regionCopy.summary}</p>
+        <p className="mt-3 text-xs font-medium uppercase tracking-wide text-base-content/70">
+          {ui.relatedHazards}
+        </p>
+        <ul className="mt-2 space-y-4 text-sm text-base-content/85">
+          {relatedHazards.map((h) => {
+            const display = HAZARD_DISPLAY[locale][h.hazard];
+            return (
+              <li key={h.hazard} className="border-b border-base-300/80 pb-3 last:border-0">
+                <span className="font-medium text-base-content">{display.title}</span>
+                {" — "}
+                {display.shortDescription}
+                {h.hrpRisks && h.hrpRisks.length > 0 && (
+                  <p className="mt-1 text-xs text-base-content/75">
+                    <span className="font-medium text-base-content/90">
+                      {ui.hrpRisksLabel}:{" "}
+                    </span>
+                    {h.hrpRisks.join(" · ")}
+                  </p>
+                )}
+                {h.officialLinks && h.officialLinks.length > 0 && (
+                  <div className="mt-2">
+                    <p className="text-xs font-medium text-base-content/70">
+                      {ui.officialReferences}
+                    </p>
+                    <ul className="mt-1 space-y-1">
+                      {h.officialLinks.map((link) => (
+                        <li key={link.url}>
+                          <a
+                            href={link.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="link link-primary inline-flex items-center gap-1"
+                          >
+                            <ExternalLink className="h-3 w-3" aria-hidden />
+                            {link.label}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+================
+File: src/features/dashboard/MissionDashboard.tsx
+================
+"use client";
+
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { ASTRONAUT_ROSTER, archetypeLabel } from "@/data/astronautRoster";
+import {
+  AlertTriangle,
+  Clock,
+  Languages,
+  Radio,
+  Rocket,
+  RotateCcw,
+  Shield,
+  Sun,
+  Users,
+} from "lucide-react";
+import { buildMockMissionHistory, MOCK_MISSION_HISTORY } from "@/data/mockMissionHistory";
+import { BodyMap } from "@/features/body-map/BodyMap";
+import { evaluateHealth } from "@/features/rules-engine/evaluateHealth";
+import { HealthCharts } from "@/features/timeline/HealthCharts";
+import { MissionRoutinePanel } from "@/features/vitals-form/MissionRoutinePanel";
+import { VitalsInputForm } from "@/features/vitals-form/VitalsInputForm";
+import {
+  ENVIRONMENT_LABELS,
+  ENVIRONMENT_MISSION_META,
+  HAZARD_DISPLAY,
+  LOCALE_STORAGE_KEY,
+  MISSION_PROFILE,
+  statusLabelForLocale,
+  type AppLocale,
+  UI_STRINGS,
+  escalationLabel,
+} from "@/lib/locale";
+import { statusStyles } from "@/lib/statusColors";
+import { fetchAstronautRoster, fetchMissionFeed } from "@/lib/fetchMissionFeed";
+import { mergeActiveScenarios } from "@/lib/mergeMissionScenarios";
+import type {
+  MissionEnvironment,
+  MissionScenarioId,
+  MockAstronautProfile,
+  VitalReadings,
+} from "@/types/health";
+
+const LOG_KEY = "healthnasa_mission_logs";
+const SCENARIOS_KEY = "healthnasa_active_scenarios";
+const ASTRONAUT_KEY = "healthnasa_astronaut_id";
+
+const SCENARIO_LABEL: Record<
+  AppLocale,
+  Record<MissionScenarioId, string>
+> = {
+  es: {
+    solar: "Partículas solares",
+    cardio: "Cardio / deshidratación",
+    isolation: "Aislamiento",
+  },
+  en: {
+    solar: "Solar particles",
+    cardio: "Cardio / dehydration",
+    isolation: "Isolation",
+  },
+};
+
+function loadLocale(): AppLocale {
+  if (typeof window === "undefined") return "es";
+  try {
+    const raw = localStorage.getItem(LOCALE_STORAGE_KEY);
+    if (raw === "en" || raw === "es") return raw;
+  } catch {
+    /* ignore */
+  }
+  return "es";
+}
+
+function loadLogs(): VitalReadings[] {
+  if (typeof window === "undefined") return MOCK_MISSION_HISTORY;
+  try {
+    const raw = localStorage.getItem(LOG_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as VitalReadings[];
+      if (parsed.length) return parsed;
+    }
+  } catch {
+    /* ignore */
+  }
+  return MOCK_MISSION_HISTORY;
+}
+
+function saveLogs(logs: VitalReadings[]) {
+  try {
+    localStorage.setItem(LOG_KEY, JSON.stringify(logs));
+  } catch {
+    /* ignore */
+  }
+}
+
+function loadActiveScenarios(): MissionScenarioId[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(SCENARIOS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as MissionScenarioId[];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveActiveScenarios(scenarios: MissionScenarioId[]) {
+  try {
+    localStorage.setItem(SCENARIOS_KEY, JSON.stringify(scenarios));
+  } catch {
+    /* ignore */
+  }
+}
+
+function loadAstronautId(): string {
+  if (typeof window === "undefined") return ASTRONAUT_ROSTER[0]?.id ?? "eva-chen";
+  try {
+    return localStorage.getItem(ASTRONAUT_KEY) ?? ASTRONAUT_ROSTER[0]?.id ?? "eva-chen";
+  } catch {
+    return ASTRONAUT_ROSTER[0]?.id ?? "eva-chen";
+  }
+}
+
+function saveAstronautId(id: string) {
+  try {
+    localStorage.setItem(ASTRONAUT_KEY, id);
+  } catch {
+    /* ignore */
+  }
+}
+
+function applyScenarioOverlay(
+  baseline: VitalReadings[],
+  activeScenarios: MissionScenarioId[],
+  environment: MissionEnvironment
+): VitalReadings[] {
+  if (activeScenarios.length === 0 || baseline.length === 0) return baseline;
+  const last = baseline[baseline.length - 1];
+  const merged = mergeActiveScenarios(last, activeScenarios, environment);
+  return [...baseline.slice(0, -1), merged];
+}
+
+export function MissionDashboard() {
+  const [baselineHistory, setBaselineHistory] =
+    useState<VitalReadings[]>(MOCK_MISSION_HISTORY);
+  const [activeScenarios, setActiveScenarios] = useState<MissionScenarioId[]>([]);
+  const [environment, setEnvironment] = useState<MissionEnvironment>("station");
+  const [locale, setLocale] = useState<AppLocale>("es");
+  const [pendingReactionMs, setPendingReactionMs] = useState<number | undefined>();
+  const [mockFeedLabel, setMockFeedLabel] = useState<string | null>(null);
+  const [selectedAstronautId, setSelectedAstronautId] = useState<string>("eva-chen");
+  const [roster, setRoster] = useState<MockAstronautProfile[]>(ASTRONAUT_ROSTER);
+
+  useEffect(() => {
+    // Post-mount hydration: SSR uses MOCK_MISSION_HISTORY; client restores saved logs.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional hydration guard
+    setBaselineHistory(loadLogs());
+    setLocale(loadLocale());
+    setActiveScenarios(loadActiveScenarios());
+    const astronautId = loadAstronautId();
+    setSelectedAstronautId(astronautId);
+
+    let cancelled = false;
+    void fetchAstronautRoster().then((list) => {
+      if (!cancelled && list?.length) setRoster(list);
+    });
+
+    const hasSaved =
+      typeof window !== "undefined" && Boolean(localStorage.getItem(LOG_KEY));
+    if (!hasSaved) {
+      void fetchMissionFeed("station", 14, astronautId).then((feed) => {
+        if (cancelled || !feed?.telemetry?.length) return;
+        setBaselineHistory(feed.telemetry);
+        setEnvironment(feed.environment);
+        saveLogs(feed.telemetry);
+        setMockFeedLabel(
+          `${feed.crew.callSign} · ${feed.crew.agency} · ${feed.source}`
+        );
+      });
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const history = useMemo(
+    () => applyScenarioOverlay(baselineHistory, activeScenarios, environment),
+    [baselineHistory, activeScenarios, environment]
+  );
+
+  useEffect(() => {
+    document.documentElement.lang = locale;
+    try {
+      localStorage.setItem(LOCALE_STORAGE_KEY, locale);
+    } catch {
+      /* ignore */
+    }
+  }, [locale]);
+
+  const ui = UI_STRINGS[locale];
+  const profile = MISSION_PROFILE[locale];
+  const envMeta = ENVIRONMENT_MISSION_META[locale][environment];
+
+  const latest =
+    history[history.length - 1] ??
+    MOCK_MISSION_HISTORY[MOCK_MISSION_HISTORY.length - 1];
+  const evaluation = useMemo(
+    () => evaluateHealth(latest, history.slice(0, -1), locale),
+    [latest, history, locale]
+  );
+
+  const overallStyles = statusStyles(evaluation.overallStatus);
+  const selectedAstronaut =
+    roster.find((a) => a.id === selectedAstronautId) ?? roster[0];
+
+  const appendReading = useCallback((reading: VitalReadings) => {
+    setBaselineHistory((prev) => {
+      const next = [...prev.filter((p) => p.missionDay !== reading.missionDay), reading].sort(
+        (a, b) => a.missionDay - b.missionDay
+      );
+      saveLogs(next);
+      void fetch("/api/health-log", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...reading, syncAck: true }),
+      }).catch(() => {
+        /* optional ground sync */
+      });
+      return next;
+    });
+  }, []);
+
+  async function restoreBaselineFromFeed(astronautId = selectedAstronautId) {
+    const feed = await fetchMissionFeed(environment, 14, astronautId);
+    if (feed?.telemetry?.length) {
+      setBaselineHistory(feed.telemetry);
+      setEnvironment(feed.environment);
+      saveLogs(feed.telemetry);
+      setMockFeedLabel(
+        `${feed.crew.callSign} · ${feed.crew.agency} · ${feed.source}`
+      );
+      return;
+    }
+    const baseline = buildMockMissionHistory(environment);
+    setBaselineHistory(baseline);
+    saveLogs(baseline);
+  }
+
+  function resetBaseline() {
+    setActiveScenarios([]);
+    saveActiveScenarios([]);
+    void restoreBaselineFromFeed();
+  }
+
+  function toggleScenario(scenarioId: MissionScenarioId) {
+    setActiveScenarios((prev) => {
+      const next = prev.includes(scenarioId)
+        ? prev.filter((id) => id !== scenarioId)
+        : [...prev, scenarioId];
+      saveActiveScenarios(next);
+      return next;
+    });
+  }
+
+  async function onSelectAstronaut(astronautId: string) {
+    setSelectedAstronautId(astronautId);
+    saveAstronautId(astronautId);
+    setActiveScenarios([]);
+    saveActiveScenarios([]);
+    await restoreBaselineFromFeed(astronautId);
+  }
+
+  function toggleLocale() {
+    setLocale((l) => (l === "es" ? "en" : "es"));
+  }
+
+  const nextDay = (latest?.missionDay ?? 14) + 1;
+  const envLabel = ENVIRONMENT_LABELS[locale][environment];
+
+  return (
+    <div className="mission-shell">
+      <a href="#main-content" className="skip-link">
+        {ui.skipToMain}
+      </a>
+
+      <header className="mission-command">
+        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="flex min-w-0 items-start gap-3">
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-box border border-primary/40 bg-primary/10">
+                <Rocket className="h-6 w-6 text-primary" aria-hidden />
+              </span>
+              <div className="min-w-0">
+                <h1 className="text-xl font-bold tracking-tight sm:text-2xl">{ui.appTitle}</h1>
+                <p className="mt-0.5 max-w-prose text-sm text-base-content/75">{ui.appSubtitle}</p>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch lg:max-w-xl">
+              <button
+                type="button"
+                onClick={toggleLocale}
+                className="btn btn-sm btn-ghost order-2 gap-2 border border-base-300/60 sm:order-1 sm:self-start"
+                aria-label={
+                  locale === "es" ? "Cambiar idioma a inglés" : "Switch language to Spanish"
+                }
+              >
+                <Languages className="h-4 w-4" aria-hidden />
+                {ui.switchToEnglish}
+              </button>
+              <div
+                role="status"
+                aria-live="polite"
+                aria-atomic="true"
+                aria-label={ui.crewStatusLive}
+                className={`mission-panel order-1 flex flex-1 gap-3 p-3 ring-1 sm:order-2 ${overallStyles.ring} ${overallStyles.bg}`}
+              >
+                <Radio className={`mt-0.5 h-5 w-5 shrink-0 ${overallStyles.text}`} aria-hidden />
+                <div className="min-w-0">
+                  <p className="text-sm font-medium leading-snug text-base-content">
+                    {evaluation.headline}
+                  </p>
+                  <p
+                    className={`mt-1 text-xs font-semibold uppercase tracking-wide ${overallStyles.text}`}
+                  >
+                    {statusLabelForLocale(locale, evaluation.overallStatus)}
+                  </p>
+                </div>
+                <p className="mission-readout ml-auto hidden self-center sm:block">
+                  {ui.missionDay} {latest.missionDay}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <dl
+            aria-label={ui.artemisProfile}
+            className="grid gap-px overflow-hidden rounded-box border border-base-300/70 bg-base-300/50 sm:grid-cols-3"
+          >
+            <TelemetryField icon={Users} label={ui.artemisProfile}>
+              <p className="font-medium text-base-content">
+                {selectedAstronaut?.fullName ?? profile.missionName}
+              </p>
+              <p className="text-base-content/80">
+                {selectedAstronaut?.callSign ?? profile.commanderRole} ·{" "}
+                {selectedAstronaut?.role ?? profile.medicalOfficerRole}
+              </p>
+              <p className="text-xs text-base-content/70">
+                {selectedAstronaut
+                  ? archetypeLabel(selectedAstronaut.archetype, locale)
+                  : profile.program}
+              </p>
+              <p className="mission-readout text-primary/90">{envLabel}</p>
+            </TelemetryField>
+            <TelemetryField icon={Clock} label={ui.communicationLatency}>
+              <p className="mission-readout text-lg text-primary">{envMeta.latencyLabel}</p>
+            </TelemetryField>
+            <TelemetryField icon={Shield} label={ui.activeEnvironmentRisks}>
+              <p className="leading-snug">
+                {envMeta.primaryHazards
+                  .map((h) => HAZARD_DISPLAY[locale][h].title)
+                  .join(" · ")}
+              </p>
+            </TelemetryField>
+          </dl>
+
+          <div className="grid gap-3 lg:grid-cols-2">
+            <p className="rounded-field border border-base-300/60 bg-base-100/40 px-4 py-3 text-sm leading-relaxed text-base-content/85">
+              <span className="font-medium text-base-content">{ui.whyAutonomous}. </span>
+              {envMeta.autonomyNote}
+            </p>
+            <div className="rounded-field border border-base-300/60 bg-base-100/40 px-4 py-3 text-sm leading-relaxed text-base-content/85">
+              <p className="font-medium text-base-content">{ui.environmentBrief}</p>
+              <p className="mt-1">
+                <span className="text-base-content/70">{ui.habitatLabel}: </span>
+                {envMeta.habitatName}
+              </p>
+              <p className="mt-1">
+                <span className="text-base-content/70">{ui.healthFocusLabel}: </span>
+                {envMeta.healthFocus}
+              </p>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="mx-auto max-w-7xl space-y-10 px-4 py-8 sm:px-6 lg:px-8"
+      >
+        <section aria-labelledby="sim-controls-heading">
+          <h2 id="sim-controls-heading" className="sr-only">
+            {ui.simulationControls}
+          </h2>
+          <div className="mission-panel p-4">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <p className="mission-section-title">{ui.simulationControls}</p>
+              <p className="mission-readout text-base-content/80 lg:text-right">
+                {ui.missionDay} {latest.missionDay} · {envLabel}
+              </p>
+            </div>
+            <p className="mt-2 text-xs text-base-content/65">{ui.scenarioTapToDeactivate}</p>
+            <p className="mt-2 text-xs text-base-content/70">
+              <span className="font-medium text-base-content">{ui.activeScenariosLabel}: </span>
+              {activeScenarios.length > 0
+                ? activeScenarios.map((id) => SCENARIO_LABEL[locale][id]).join(" · ")
+                : ui.noActiveScenarios}
+            </p>
+            <p className="mt-1 text-xs text-base-content/65">{envMeta.scenarioContext}</p>
+
+            <label className="mt-4 block max-w-xl">
+              <span className="text-xs font-semibold uppercase tracking-wide text-base-content/65">
+                {ui.crewRoster}
+              </span>
+              <select
+                className="select select-bordered select-sm mt-1 w-full"
+                value={selectedAstronautId}
+                onChange={(e) => void onSelectAstronaut(e.target.value)}
+                aria-label={ui.selectAstronaut}
+              >
+                {roster.map((member) => (
+                  <option key={member.id} value={member.id}>
+                    {member.callSign} — {member.fullName} (
+                    {archetypeLabel(member.archetype, locale)}) ·{" "}
+                    {ENVIRONMENT_LABELS[locale][member.homeEnvironment]}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            {mockFeedLabel ? (
+              <p className="mt-2 text-xs text-base-content/70">
+                <span className="font-medium text-emerald-400">{ui.mockGroundFeedConnected}</span>
+                {" · "}
+                {ui.mockGroundFeed}
+                {" — "}
+                <span className="mission-readout">{mockFeedLabel}</span>
+              </p>
+            ) : null}
+            <div
+              className="mt-4 flex flex-wrap gap-2"
+              role="group"
+              aria-label={ui.simulationControls}
+            >
+              <ScenarioButton
+                icon={Sun}
+                label={ui.simulateSolarEvent}
+                active={activeScenarios.includes("solar")}
+                activeLabel={ui.scenarioActive}
+                inactiveLabel={ui.scenarioInactive}
+                onClick={() => toggleScenario("solar")}
+                tone="amber"
+              />
+              <ScenarioButton
+                icon={AlertTriangle}
+                label={ui.simulateCardioDehydration}
+                active={activeScenarios.includes("cardio")}
+                activeLabel={ui.scenarioActive}
+                inactiveLabel={ui.scenarioInactive}
+                onClick={() => toggleScenario("cardio")}
+                tone="rose"
+              />
+              <ScenarioButton
+                icon={Radio}
+                label={ui.simulateIsolationDrift}
+                active={activeScenarios.includes("isolation")}
+                activeLabel={ui.scenarioActive}
+                inactiveLabel={ui.scenarioInactive}
+                onClick={() => toggleScenario("isolation")}
+                tone="violet"
+              />
+              <ScenarioButton
+                icon={RotateCcw}
+                label={ui.resetBaseline}
+                active={activeScenarios.length === 0}
+                activeLabel={ui.scenarioActive}
+                inactiveLabel={ui.scenarioInactive}
+                onClick={resetBaseline}
+                tone="neutral"
+              />
+            </div>
+          </div>
+        </section>
+
+        <div className="grid gap-8 xl:grid-cols-12">
+          <section
+            className="space-y-8 xl:col-span-8"
+            aria-labelledby="body-systems-heading"
+          >
+            <MotionReveal>
+              <h2 id="body-systems-heading" className="mission-section-title mb-4">
+                {ui.bodyMapTitle}
+              </h2>
+              <BodyMap systemStatuses={evaluation.systemStatuses} locale={locale} />
+            </MotionReveal>
+
+            <MotionReveal>
+              <h2 className="mission-section-title mb-4">{ui.missionTimeline}</h2>
+              <HealthCharts
+                history={history}
+                locale={locale}
+                environment={environment}
+                onEnvironmentChange={(env) => setEnvironment(env)}
+              />
+            </MotionReveal>
+
+            <MotionReveal>
+              <h2 className="mission-section-title mb-4">{ui.logVitals}</h2>
+              <VitalsInputForm
+                key={`${environment}-${nextDay}`}
+                environment={environment}
+                missionDay={nextDay}
+                locale={locale}
+                onSubmit={appendReading}
+                pendingReactionMs={pendingReactionMs}
+              />
+            </MotionReveal>
+          </section>
+
+          <aside className="space-y-6 xl:col-span-4 xl:sticky xl:top-6 xl:self-start">
+            <MotionReveal>
+              <h2 className="mission-section-title mb-4">{ui.recommendedActions}</h2>
+              <ul className="space-y-3">
+                {evaluation.guidance.map((g, i) => (
+                  <li key={i} className="mission-panel p-4 text-sm text-base-content/85">
+                    <p className="font-medium text-base-content">{g.whyNeededInSpace}</p>
+                    <ul className="mt-2 list-disc space-y-1 pl-4">
+                      {g.recommendedActions.map((a) => (
+                        <li key={a}>{a}</li>
+                      ))}
+                    </ul>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-4 text-sm text-base-content/75">
+                {ui.escalation}:{" "}
+                <span className="mission-readout text-primary">
+                  {escalationLabel(locale, evaluation.escalationLevel)}
+                </span>
+              </p>
+            </MotionReveal>
+
+            <MotionReveal>
+              <h2 className="mission-section-title mb-4">{ui.dailyCountermeasures}</h2>
+              <MissionRoutinePanel
+                locale={locale}
+                onReactionRecorded={(ms) => setPendingReactionMs(ms)}
+              />
+              <p className="mt-4 text-sm leading-relaxed text-base-content/75">
+                {profile.program}
+              </p>
+              <p className="mt-2 text-sm text-base-content/65">
+                {locale === "es"
+                  ? "La sincronización con Tierra es opcional; la evaluación clínica se ejecuta en el navegador."
+                  : "Ground sync is optional; clinical evaluation runs entirely in the browser."}
+              </p>
+            </MotionReveal>
+          </aside>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+function TelemetryField({
+  icon: Icon,
+  label,
+  children,
+}: {
+  icon: typeof Users;
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="bg-base-200/80 px-4 py-3">
+      <dt className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-base-content/65">
+        <Icon className="h-3.5 w-3.5 text-primary" aria-hidden />
+        {label}
+      </dt>
+      <dd className="mt-2 space-y-0.5 text-sm text-base-content/90">{children}</dd>
+    </div>
+  );
+}
+
+type ScenarioTone = "amber" | "rose" | "violet" | "neutral";
+
+const SCENARIO_TONE_CLASS: Record<ScenarioTone, { idle: string; active: string }> = {
+  amber: {
+    idle:
+      "border-amber-500/35 bg-amber-500/5 text-amber-100/90 hover:border-amber-400/55 hover:bg-amber-500/15",
+    active:
+      "border-amber-400 bg-amber-500/25 text-amber-50 ring-2 ring-amber-400/70 ring-offset-2 ring-offset-base-200",
+  },
+  rose: {
+    idle:
+      "border-rose-500/35 bg-rose-500/5 text-rose-100/90 hover:border-rose-400/55 hover:bg-rose-500/15",
+    active:
+      "border-rose-400 bg-rose-500/25 text-rose-50 ring-2 ring-rose-400/70 ring-offset-2 ring-offset-base-200",
+  },
+  violet: {
+    idle:
+      "border-violet-500/35 bg-violet-500/5 text-violet-100/90 hover:border-violet-400/55 hover:bg-violet-500/15",
+    active:
+      "border-violet-400 bg-violet-500/25 text-violet-50 ring-2 ring-violet-400/70 ring-offset-2 ring-offset-base-200",
+  },
+  neutral: {
+    idle:
+      "border-base-300 bg-base-100/40 text-base-content hover:border-base-content/30 hover:bg-base-200/80",
+    active:
+      "border-emerald-500/50 bg-emerald-500/15 text-emerald-100 ring-2 ring-emerald-500/50 ring-offset-2 ring-offset-base-200",
+  },
+};
+
+function ScenarioButton({
+  icon: Icon,
+  label,
+  onClick,
+  tone,
+  active,
+  activeLabel,
+  inactiveLabel,
+}: {
+  icon: typeof Sun;
+  label: string;
+  onClick: () => void;
+  tone: ScenarioTone;
+  active: boolean;
+  activeLabel: string;
+  inactiveLabel: string;
+}) {
+  const isOn = active;
+  const toneClasses = SCENARIO_TONE_CLASS[tone];
+  const stateLabel = isOn ? activeLabel : inactiveLabel;
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={isOn}
+      className={`btn btn-sm gap-2 border font-normal ${
+        isOn ? toneClasses.active : toneClasses.idle
+      }`}
+    >
+      <Icon className="h-4 w-4 shrink-0" aria-hidden />
+      <span className="text-left">
+        <span className="block leading-tight">{label}</span>
+        <span
+          className={`mt-0.5 block text-[10px] font-semibold uppercase tracking-wide ${
+            isOn ? "text-current" : "text-base-content/50"
+          }`}
+        >
+          <span
+            className={`mr-1 inline-block h-1.5 w-1.5 rounded-full align-middle ${
+              isOn ? "bg-current animate-pulse" : "bg-base-content/30"
+            }`}
+            aria-hidden
+          />
+          {stateLabel}
+        </span>
+      </span>
+    </button>
+  );
+}
+
+function MotionReveal({ children }: { children: ReactNode }) {
+  return (
+    <div className="animate-[reveal_0.55s_cubic-bezier(0.16,1,0.3,1)_both]">{children}</div>
+  );
+}
+
+================
+File: src/features/timeline/HealthCharts.tsx
+================
+"use client";
+
+import { useEffect, useMemo, useState, type ReactElement } from "react";
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  Legend,
+  Line,
+  LineChart,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import { RADIATION_CHART_CAUTION_MSV } from "@/data/nasaKnowledge";
+import { buildMockMissionHistory } from "@/data/mockMissionHistory";
+import {
+  ENVIRONMENT_LABELS,
+  ENVIRONMENT_MISSION_META,
+  type AppLocale,
+  UI_STRINGS,
+} from "@/lib/locale";
+import type { MissionEnvironment, VitalReadings } from "@/types/health";
+
+const ENVIRONMENT_IDS: MissionEnvironment[] = [
+  "station",
+  "spacecraft",
+  "rover",
+  "lunar_base",
+  "mars_base",
+];
+
+interface HealthChartsProps {
+  history: VitalReadings[];
+  locale?: AppLocale;
+  environment?: MissionEnvironment;
+  onEnvironmentChange?: (env: MissionEnvironment) => void;
+}
+
+export function HealthCharts({
+  history,
+  locale = "es",
+  environment: environmentProp,
+  onEnvironmentChange,
+}: HealthChartsProps) {
+  const ui = UI_STRINGS[locale];
+  const envLabels = ENVIRONMENT_LABELS[locale];
+
+  const [environment, setEnvironment] = useState<MissionEnvironment>(
+    environmentProp ?? history[0]?.environment ?? "station"
+  );
+  const envMeta = ENVIRONMENT_MISSION_META[locale][environment];
+
+  useEffect(() => {
+    if (environmentProp && environmentProp !== environment) {
+      setEnvironment(environmentProp);
+    }
+  }, [environmentProp, environment]);
+
+  const chartData = useMemo(() => {
+    const filtered = history.filter((h) => h.environment === environment);
+    const source =
+      filtered.length > 0 ? filtered : buildMockMissionHistory(environment);
+    return source.map((h, index) => {
+      const dose = h.radiationMsv ?? 0;
+      const cumulative = source
+        .slice(0, index + 1)
+        .reduce((acc, row) => acc + (row.radiationMsv ?? 0), 0);
+      return {
+        day: `D${h.missionDay}`,
+        missionDay: h.missionDay,
+        systolicBP: h.systolicBP,
+        heartRate: h.heartRate,
+        sleepHours: h.sleepHours,
+        bloodSugar: h.bloodSugar,
+        moodScore: h.moodScore,
+        radiationMsv: dose,
+        radiationCumulative: Math.round(cumulative * 100) / 100,
+      };
+    });
+  }, [history, environment]);
+
+  function handleEnvChange(env: MissionEnvironment) {
+    setEnvironment(env);
+    onEnvironmentChange?.(env);
+  }
+
+  return (
+    <div className="space-y-6">
+      <div
+        role="tablist"
+        aria-label={ui.missionEnvironment}
+        className="flex flex-wrap items-center gap-2"
+      >
+        <span className="text-sm text-base-content/80">{ui.missionEnvironment}:</span>
+        {ENVIRONMENT_IDS.map((id) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            id={`env-tab-${id}`}
+            aria-selected={environment === id}
+            aria-controls={`env-panel-${id}`}
+            onClick={() => handleEnvChange(id)}
+            className={`btn btn-xs sm:btn-sm ${
+              environment === id ? "btn-primary" : "btn-outline"
+            }`}
+          >
+            {envLabels[id]}
+          </button>
+        ))}
+      </div>
+
+      <div
+        id={`env-panel-${environment}`}
+        role="tabpanel"
+        aria-labelledby={`env-tab-${environment}`}
+        className="space-y-6"
+      >
+      <div className="mission-panel space-y-2 p-4 text-sm text-base-content/85">
+        <p className="mission-section-title text-base">{ui.environmentBrief}</p>
+        <p>
+          <span className="font-medium text-base-content">{ui.habitatLabel}: </span>
+          {envMeta.habitatName}
+        </p>
+        <p>
+          <span className="font-medium text-base-content">{ui.operationsLabel}: </span>
+          {envMeta.operationsContext}
+        </p>
+        <p>
+          <span className="font-medium text-base-content">{ui.healthFocusLabel}: </span>
+          {envMeta.healthFocus}
+        </p>
+        <p className="text-xs text-base-content/70">{envMeta.scenarioContext}</p>
+      </div>
+
+      <div className="mission-panel p-4">
+        <h3 className="mb-3 text-sm font-medium">{ui.chartCardio}</h3>
+        <ChartContainer>
+          <LineChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+            <XAxis dataKey="day" stroke="#94a3b8" fontSize={12} />
+            <YAxis yAxisId="bp" stroke="#94a3b8" fontSize={12} />
+            <YAxis yAxisId="hr" orientation="right" stroke="#94a3b8" fontSize={12} />
+            <Tooltip
+              contentStyle={{
+                background: "#0f172a",
+                border: "1px solid #334155",
+                borderRadius: 8,
+              }}
+            />
+            <Legend />
+            <Line
+              yAxisId="bp"
+              type="monotone"
+              dataKey="systolicBP"
+              name={ui.chartSystolic}
+              stroke="#38bdf8"
+              strokeWidth={2}
+              dot={false}
+            />
+            <Line
+              yAxisId="hr"
+              type="monotone"
+              dataKey="heartRate"
+              name={ui.chartHeartRate}
+              stroke="#a78bfa"
+              strokeWidth={2}
+              dot={false}
+            />
+          </LineChart>
+        </ChartContainer>
+      </div>
+
+      <div className="mission-panel p-4">
+        <h3 className="mb-3 text-sm font-medium">{ui.chartRecovery}</h3>
+        <ChartContainer>
+          <AreaChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+            <XAxis dataKey="day" stroke="#94a3b8" fontSize={12} />
+            <YAxis stroke="#94a3b8" fontSize={12} />
+            <Tooltip
+              contentStyle={{
+                background: "#0f172a",
+                border: "1px solid #334155",
+                borderRadius: 8,
+              }}
+            />
+            <Legend />
+            <Area
+              type="monotone"
+              dataKey="sleepHours"
+              name={ui.chartSleep}
+              stroke="#34d399"
+              fill="#34d39933"
+            />
+            <Area
+              type="monotone"
+              dataKey="bloodSugar"
+              name={ui.chartGlucose}
+              stroke="#fbbf24"
+              fill="#fbbf2433"
+            />
+          </AreaChart>
+        </ChartContainer>
+      </div>
+
+      <div className="mission-panel p-4">
+        <h3 className="mb-3 text-sm font-medium">{ui.chartRadiation}</h3>
+        <ChartContainer>
+          <LineChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+            <XAxis dataKey="day" stroke="#94a3b8" fontSize={12} />
+            <YAxis stroke="#94a3b8" fontSize={12} />
+            <Tooltip
+              contentStyle={{
+                background: "#0f172a",
+                border: "1px solid #334155",
+                borderRadius: 8,
+              }}
+            />
+            <Legend />
+            <ReferenceLine
+              y={RADIATION_CHART_CAUTION_MSV}
+              stroke="#fbbf24"
+              strokeDasharray="4 4"
+              label={{
+                value: ui.radiationCautionLine,
+                fill: "#fbbf24",
+                fontSize: 10,
+                position: "insideTopRight",
+              }}
+            />
+            <Line
+              type="monotone"
+              dataKey="radiationMsv"
+              name={ui.vitals.radiationMsv}
+              stroke="#f472b6"
+              strokeWidth={2}
+              dot={false}
+            />
+            <Line
+              type="monotone"
+              dataKey="radiationCumulative"
+              name={locale === "es" ? "Acumulado (mSv)" : "Cumulative (mSv)"}
+              stroke="#fb7185"
+              strokeWidth={2}
+              strokeDasharray="6 3"
+              dot={false}
+            />
+          </LineChart>
+        </ChartContainer>
+      </div>
+      </div>
+    </div>
+  );
+}
+
+function ChartContainer({ children }: { children: ReactElement }) {
+  return (
+    <ResponsiveContainer width="100%" height={220}>
+      {children}
+    </ResponsiveContainer>
+  );
+}
+
+
+
+
+
+================================================================
+End of Codebase
+================================================================
