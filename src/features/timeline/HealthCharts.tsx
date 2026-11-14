@@ -14,21 +14,34 @@ import {
   YAxis,
 } from "recharts";
 import { buildMockMissionHistory } from "@/data/mockMissionHistory";
+import {
+  ENVIRONMENT_LABELS,
+  type AppLocale,
+  UI_STRINGS,
+} from "@/lib/locale";
 import type { MissionEnvironment, VitalReadings } from "@/types/health";
 
-const ENVIRONMENTS: { id: MissionEnvironment; label: string }[] = [
-  { id: "station", label: "Space station" },
-  { id: "spacecraft", label: "Transit spacecraft" },
-  { id: "rover", label: "Rover (partial gravity)" },
-  { id: "lunar_base", label: "Lunar base" },
+const ENVIRONMENT_IDS: MissionEnvironment[] = [
+  "station",
+  "spacecraft",
+  "rover",
+  "lunar_base",
 ];
 
 interface HealthChartsProps {
   history: VitalReadings[];
+  locale?: AppLocale;
   onEnvironmentChange?: (env: MissionEnvironment) => void;
 }
 
-export function HealthCharts({ history, onEnvironmentChange }: HealthChartsProps) {
+export function HealthCharts({
+  history,
+  locale = "es",
+  onEnvironmentChange,
+}: HealthChartsProps) {
+  const ui = UI_STRINGS[locale];
+  const envLabels = ENVIRONMENT_LABELS[locale];
+
   const [environment, setEnvironment] = useState<MissionEnvironment>(
     history[0]?.environment ?? "station"
   );
@@ -56,27 +69,25 @@ export function HealthCharts({ history, onEnvironmentChange }: HealthChartsProps
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-sm text-slate-400">Mission environment:</span>
-        {ENVIRONMENTS.map((e) => (
+        <span className="text-sm text-slate-400">{ui.missionEnvironment}:</span>
+        {ENVIRONMENT_IDS.map((id) => (
           <button
-            key={e.id}
+            key={id}
             type="button"
-            onClick={() => handleEnvChange(e.id)}
+            onClick={() => handleEnvChange(id)}
             className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-              environment === e.id
+              environment === id
                 ? "border-sky-500 bg-sky-500/20 text-sky-200"
                 : "border-slate-700 text-slate-400 hover:border-slate-500"
             }`}
           >
-            {e.label}
+            {envLabels[id]}
           </button>
         ))}
       </div>
 
       <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
-        <h3 className="mb-3 text-sm font-medium text-slate-200">
-          Cardiovascular trend
-        </h3>
+        <h3 className="mb-3 text-sm font-medium text-slate-200">{ui.chartCardio}</h3>
         <ChartContainer>
           <LineChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
@@ -95,7 +106,7 @@ export function HealthCharts({ history, onEnvironmentChange }: HealthChartsProps
               yAxisId="bp"
               type="monotone"
               dataKey="systolicBP"
-              name="Systolic BP"
+              name={ui.chartSystolic}
               stroke="#38bdf8"
               strokeWidth={2}
               dot={false}
@@ -104,7 +115,7 @@ export function HealthCharts({ history, onEnvironmentChange }: HealthChartsProps
               yAxisId="hr"
               type="monotone"
               dataKey="heartRate"
-              name="Heart rate"
+              name={ui.chartHeartRate}
               stroke="#a78bfa"
               strokeWidth={2}
               dot={false}
@@ -114,9 +125,7 @@ export function HealthCharts({ history, onEnvironmentChange }: HealthChartsProps
       </div>
 
       <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
-        <h3 className="mb-3 text-sm font-medium text-slate-200">
-          Recovery & metabolic
-        </h3>
+        <h3 className="mb-3 text-sm font-medium text-slate-200">{ui.chartRecovery}</h3>
         <ChartContainer>
           <AreaChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
@@ -133,14 +142,14 @@ export function HealthCharts({ history, onEnvironmentChange }: HealthChartsProps
             <Area
               type="monotone"
               dataKey="sleepHours"
-              name="Sleep (h)"
+              name={ui.chartSleep}
               stroke="#34d399"
               fill="#34d39933"
             />
             <Area
               type="monotone"
               dataKey="bloodSugar"
-              name="Blood sugar"
+              name={ui.chartGlucose}
               stroke="#fbbf24"
               fill="#fbbf2433"
             />

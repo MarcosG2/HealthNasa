@@ -1,4 +1,5 @@
 import { EXAM_THRESHOLDS, NASA_HAZARDS_KNOWLEDGE } from "@/data/nasaKnowledge";
+import { EVALUATOR_COPY, type AppLocale } from "@/lib/locale";
 import type {
   ActionableGuidance,
   BodySystemStatus,
@@ -74,8 +75,10 @@ function buildGuidance(
  */
 export function evaluateHealth(
   current: VitalReadings,
-  recentHistory: VitalReadings[] = []
+  recentHistory: VitalReadings[] = [],
+  locale: AppLocale = "es"
 ): HealthEvaluation {
+  const copy = EVALUATOR_COPY[locale];
   const history = [...recentHistory, current].sort(
     (a, b) => a.missionDay - b.missionDay
   );
@@ -128,8 +131,8 @@ export function evaluateHealth(
     status: bySystem.get(system) ?? "normal",
     summary:
       (bySystem.get(system) ?? "normal") === "normal"
-        ? "Within expected range for this mission phase."
-        : "One or more readings need a closer look.",
+        ? copy.systemNormal
+        : copy.systemWarning,
   }));
 
   let overallStatus: HealthStatus = "normal";
@@ -164,12 +167,8 @@ export function evaluateHealth(
     guidance.push(
       buildGuidance(
         hazardTags,
-        [
-          "Re-check blood pressure after 5 minutes of rest.",
-          "Review hydration and today's exercise completion.",
-          "Inform crew medical officer if reading repeats.",
-        ],
-        "Cardiovascular shifts are common in microgravity but sudden spikes need action."
+        copy.guidance.cardio.actions,
+        copy.guidance.cardio.why
       )
     );
   }
@@ -183,12 +182,8 @@ export function evaluateHealth(
     guidance.push(
       buildGuidance(
         hazardTags,
-        [
-          "Protect a 7-hour sleep window tonight.",
-          "Brief crew check-in on workload.",
-          "Use relaxation protocol before sleep.",
-        ],
-        "Sleep and mood are early signals of isolation stress on long missions."
+        copy.guidance.neuro.actions,
+        copy.guidance.neuro.why
       )
     );
   }
@@ -199,12 +194,8 @@ export function evaluateHealth(
     guidance.push(
       buildGuidance(
         hazardTags,
-        [
-          "Confirm meal timing and hydration log.",
-          "Take temperature again in 30 minutes.",
-          "Contact ground surgeon if fever or glucose stays high.",
-        ],
-        "Metabolic changes can reflect cabin environment or emerging illness."
+        copy.guidance.metabolic.actions,
+        copy.guidance.metabolic.why
       )
     );
   }
@@ -213,18 +204,18 @@ export function evaluateHealth(
     guidance.push(
       buildGuidance(
         new Set(["distance"]),
-        ["Continue daily check-in routine.", "Log any new symptoms in notes."],
-        "Regular vitals keep the crew ready when help from Earth is far away."
+        copy.guidance.default.actions,
+        copy.guidance.default.why
       )
     );
   }
 
   const headline =
     escalationLevel === "ground_flight_surgeon"
-      ? "Escalate to ground flight surgeon"
+      ? copy.headlines.ground
       : escalationLevel === "crew_attention"
-        ? "Crew medical attention recommended"
-        : "On track — maintain daily routine";
+        ? copy.headlines.crew
+        : copy.headlines.ok;
 
   return {
     overallStatus,

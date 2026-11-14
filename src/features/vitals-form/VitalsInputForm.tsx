@@ -2,39 +2,42 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Camera, Flame } from "lucide-react";
-import { MEASUREMENT_GUIDE } from "@/data/nasaKnowledge";
+import {
+  MEASUREMENT_GUIDE_LOCALE,
+  type AppLocale,
+  UI_STRINGS,
+} from "@/lib/locale";
 import { statusStyles } from "@/lib/statusColors";
 import type { MissionEnvironment, VitalReadings } from "@/types/health";
+import type { ExamThreshold } from "@/types/health";
 
 const STORAGE_KEY = "healthnasa_checkin_streak";
-const MOOD_LABELS = ["Very low", "Low", "Okay", "Good", "Great"] as const;
 
-const STEP_FIELDS: {
-  key: keyof VitalReadings;
-  label: string;
-  type: "number" | "mood" | "optional";
-  step?: number;
-}[] = [
-  { key: "systolicBP", label: "Systolic BP", type: "number" },
-  { key: "diastolicBP", label: "Diastolic BP", type: "number" },
-  { key: "heartRate", label: "Heart rate", type: "number" },
-  { key: "bloodSugar", label: "Blood sugar", type: "number" },
-  { key: "temperature", label: "Temperature", type: "number", step: 0.1 },
-  { key: "sleepHours", label: "Sleep hours", type: "number", step: 0.1 },
-  { key: "moodScore", label: "Mood", type: "mood" },
+const STEP_METRICS: ExamThreshold["metric"][] = [
+  "systolicBP",
+  "diastolicBP",
+  "heartRate",
+  "bloodSugar",
+  "temperature",
+  "sleepHours",
+  "moodScore",
 ];
 
 interface VitalsInputFormProps {
   environment: MissionEnvironment;
   missionDay: number;
+  locale?: AppLocale;
   onSubmit: (reading: VitalReadings) => void;
 }
 
 export function VitalsInputForm({
   environment,
   missionDay,
+  locale = "es",
   onSubmit,
 }: VitalsInputFormProps) {
+  const ui = UI_STRINGS[locale];
+
   const [step, setStep] = useState(0);
   const [streak, setStreak] = useState(0);
   const [preview, setPreview] = useState<string | undefined>();
@@ -53,12 +56,16 @@ export function VitalsInputForm({
     }
   }, []);
 
-  const currentField = STEP_FIELDS[step];
+  const currentMetric = STEP_METRICS[step];
+  const isMoodStep = currentMetric === "moodScore";
+  const currentLabel = currentMetric
+    ? ui.vitals[currentMetric as keyof typeof ui.vitals]
+    : "";
+
   const guide = useMemo(() => {
-    if (!currentField || currentField.type === "mood") return null;
-    const metric = currentField.key as keyof typeof MEASUREMENT_GUIDE;
-    return MEASUREMENT_GUIDE[metric];
-  }, [currentField]);
+    if (!currentMetric || isMoodStep) return null;
+    return MEASUREMENT_GUIDE_LOCALE[locale][currentMetric];
+  }, [currentMetric, isMoodStep, locale]);
 
   const updateField = useCallback((key: string, value: number) => {
     setForm((f) => ({ ...f, [key]: value }));
@@ -107,33 +114,37 @@ export function VitalsInputForm({
 
   const moodValue = form.moodScore ?? 4;
   const streakStyles = statusStyles(streak >= 7 ? "normal" : "warning");
+  const streakText =
+    locale === "es"
+      ? `${streak} ${ui.streak}`
+      : `${streak} ${ui.streak}`;
 
   return (
     <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-slate-100">Daily check-in</h3>
+        <h3 className="text-lg font-semibold text-slate-100">{ui.dailyCheckIn}</h3>
         <div
           className={`flex items-center gap-2 rounded-full px-3 py-1 text-xs ${streakStyles.bg} ${streakStyles.text}`}
         >
           <Flame className="h-4 w-4" aria-hidden />
-          {streak} day streak — keep your routine
+          {streakText}
         </div>
       </div>
 
       <p className="mb-4 text-sm text-slate-400">
-        Step {step + 1} of {STEP_FIELDS.length}: {currentField?.label}
+        {ui.stepOf} {step + 1} {ui.of} {STEP_METRICS.length}: {currentLabel}
       </p>
 
       {guide && (
         <div className="mb-4 rounded-lg border border-slate-800 bg-slate-950/80 p-3 text-sm text-slate-300">
-          <p className="font-medium text-slate-100">How to measure</p>
+          <p className="font-medium text-slate-100">{ui.howToMeasure}</p>
           <p className="mt-1">{guide.howTo}</p>
-          <p className="mt-2 font-medium text-slate-100">Why in space</p>
+          <p className="mt-2 font-medium text-slate-100">{ui.whyInSpace}</p>
           <p className="mt-1">{guide.whySpace}</p>
         </div>
       )}
 
-      {currentField?.type === "mood" ? (
+      {isMoodStep ? (
         <div className="flex flex-wrap gap-2">
           {[1, 2, 3, 4, 5].map((n) => (
             <button
@@ -146,24 +157,24 @@ export function VitalsInputForm({
                   : "border-slate-700 text-slate-400"
               }`}
             >
-              {n} — {MOOD_LABELS[n - 1]}
+              {n} — {ui.mood[n - 1]}
             </button>
           ))}
         </div>
       ) : (
         <input
           type="number"
-          step={currentField?.step ?? 1}
+          step={currentMetric === "temperature" || currentMetric === "sleepHours" ? 0.1 : 1}
           className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100"
-          value={(form[currentField.key as keyof VitalReadings] as number) ?? ""}
-          onChange={(e) => updateField(currentField.key, Number(e.target.value))}
+          value={(form[currentMetric as keyof VitalReadings] as number) ?? ""}
+          onChange={(e) => updateField(currentMetric, Number(e.target.value))}
         />
       )}
 
       <div className="mt-4 flex items-center gap-3">
         <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-400">
           <Camera className="h-4 w-4" />
-          Optional image (camera / ultrasound note)
+          {ui.optionalImage}
           <input
             type="file"
             accept="image/*"
@@ -173,7 +184,11 @@ export function VitalsInputForm({
         </label>
         {preview && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={preview} alt="Upload preview" className="h-12 w-12 rounded object-cover" />
+          <img
+            src={preview}
+            alt={ui.uploadPreview}
+            className="h-12 w-12 rounded object-cover"
+          />
         )}
       </div>
 
@@ -184,15 +199,15 @@ export function VitalsInputForm({
           onClick={() => setStep((s) => Math.max(0, s - 1))}
           className="rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-300 disabled:opacity-40"
         >
-          Back
+          {ui.back}
         </button>
-        {step < STEP_FIELDS.length - 1 ? (
+        {step < STEP_METRICS.length - 1 ? (
           <button
             type="button"
             onClick={() => setStep((s) => s + 1)}
             className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-500"
           >
-            Next
+            {ui.next}
           </button>
         ) : (
           <button
@@ -200,7 +215,7 @@ export function VitalsInputForm({
             onClick={submitAll}
             className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500"
           >
-            Save today&apos;s log
+            {ui.saveLog}
           </button>
         )}
       </div>
