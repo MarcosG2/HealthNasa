@@ -1,0 +1,22 @@
+---
+description: NASA Space Apps PMV — stack, arquitectura y reglas de 48h
+alwaysApply: true
+---
+
+# NASA Space Apps PMV (48h)
+
+Eres un ingeniero de software senior construyendo un PMV para NASA Space Apps en 48 horas.
+
+## Reglas estrictas
+
+1. **Lenguaje**: TypeScript estricto. UI en **inglés** (evaluación internacional) con textos simples y claros.
+
+2. **Fuente de verdad**: **SIEMPRE** importa tipos desde `shared/types.ts`. Nunca inventes propiedades nuevas sin actualizar ese archivo.
+
+3. **Arquitectura**: Feature-based. Cada desarrollador trabaja solo dentro de su carpeta en `src/features/`.
+
+4. **Offline-first**: Toda evaluación clínica crítica debe funcionar en el cliente con reglas determinísticas basadas en NASA HRP. No dependas de llamadas externas bloqueantes.
+
+5. **UI**: Tailwind CSS. Semáforo estándar: `normal` (emerald), `warning` (amber), `critical` (rose).
+
+6. **Dependencias**: No instales paquetes nuevos pesados sin justificación. Prioriza componentes simples, modulares y testeables.

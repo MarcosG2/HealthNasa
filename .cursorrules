@@ -1,0 +1,61 @@
+# NASA Space Apps — Health Monitoring MVP (48h team conventions)
+
+## Team structure (3 developers)
+
+Work inside **your** feature folder only. Do not edit another dev's feature folder without coordination.
+
+| Developer | Folder | Responsibility |
+|-----------|--------|----------------|
+| Dev 1 | `src/features/body-map/`, `src/features/timeline/` | Interactive body map + mission charts |
+| Dev 2 | `src/features/rules-engine/` | Deterministic offline health evaluation (NASA HRP–inspired thresholds) |
+| Dev 3 | `src/features/vitals-form/` | Guided vitals input, streak widget, image preview |
+
+Shared contracts (coordinate before changing):
+- `src/types/health.ts` — single source of types for health data and evaluation
+- `src/data/nasaKnowledge.ts` — educational copy and thresholds
+- `src/data/mockMissionHistory.ts` — demo mission readings
+- `src/app/page.tsx` — dashboard assembly only (thin shell)
+
+## TypeScript
+
+- **Strict mode** always. No `any`. Prefer explicit return types on exported functions.
+- Import domain types from `@/types/health` (or `@/shared/types` re-export if present).
+- New indicators: extend `extraMetrics` or update `health.ts` in a PR reviewed by all three.
+
+## Architecture
+
+- **Feature-based** under `src/features/<feature-name>/`.
+- **Offline-first**: evaluation runs in the browser via `evaluateHealth()`. No blocking API for core UX.
+- **Lightweight**: no heavy 3D, no ORM, no realtime DB for the PMV. `localStorage` for persistence optional.
+- API routes are placeholders for future ground-sync only.
+
+## UI language
+
+- All user-facing text in **clear, simple English**. Do not assume medical training.
+- Explain *why* a measurement matters in space in one short sentence when possible.
+
+## Status color standard (Tailwind)
+
+| Status | Semantics | Tailwind |
+|--------|-----------|----------|
+| `normal` | Within expected range | `emerald` (e.g. `text-emerald-400`, `bg-emerald-500/20`) |
+| `warning` | Trend or value needs attention | `amber` |
+| `critical` | Escalate to crew or ground | `rose` |
+
+Use shared helpers from `@/lib/statusColors` when mapping `HealthStatus` to classes.
+
+## Components
+
+- Prefer small, named exports. One main component per file.
+- Client components: `"use client"` only when needed (forms, charts, interactivity).
+- Dark mission-control aesthetic: `bg-slate-950`, `text-slate-100`, subtle borders `border-slate-800`.
+
+## Git / merge conflict avoidance
+
+- Do not rename files in another feature folder.
+- Add new files inside your folder; wire them from `page.tsx` in a single coordinated commit.
+- Run `npm run build` before merging to main.
+
+## Stack (fixed)
+
+Next.js App Router, TypeScript, Tailwind CSS, `lucide-react`, `recharts` only — no new heavy dependencies without team agreement.
