@@ -1,18 +1,35 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Languages, Radio, Rocket } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
-  CRITICAL_SCENARIO_READING,
+  AlertTriangle,
+  Clock,
+  Languages,
+  Radio,
+  Rocket,
+  RotateCcw,
+  Shield,
+  Sun,
+  Users,
+} from "lucide-react";
+import {
+  buildMockMissionHistory,
+  cardioDehydrationScenario,
+  isolationDriftScenario,
   MOCK_MISSION_HISTORY,
+  solarParticleScenario,
 } from "@/data/mockMissionHistory";
 import { BodyMap } from "@/features/body-map/BodyMap";
 import { evaluateHealth } from "@/features/rules-engine/evaluateHealth";
 import { HealthCharts } from "@/features/timeline/HealthCharts";
+import { MissionRoutinePanel } from "@/features/vitals-form/MissionRoutinePanel";
 import { VitalsInputForm } from "@/features/vitals-form/VitalsInputForm";
 import {
   ENVIRONMENT_LABELS,
+  ENVIRONMENT_MISSION_META,
+  HAZARD_DISPLAY,
   LOCALE_STORAGE_KEY,
+  MISSION_PROFILE,
   statusLabelForLocale,
   type AppLocale,
   UI_STRINGS,
@@ -57,11 +74,15 @@ function saveLogs(logs: VitalReadings[]) {
 }
 
 export function MissionDashboard() {
-  const [history, setHistory] = useState<VitalReadings[]>(loadLogs);
+  const [history, setHistory] = useState<VitalReadings[]>(MOCK_MISSION_HISTORY);
   const [environment, setEnvironment] = useState<MissionEnvironment>("station");
   const [locale, setLocale] = useState<AppLocale>("es");
+  const [pendingReactionMs, setPendingReactionMs] = useState<number | undefined>();
 
   useEffect(() => {
+    // Post-mount hydration: SSR uses MOCK_MISSION_HISTORY; client restores saved logs.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional hydration guard
+    setHistory(loadLogs());
     setLocale(loadLocale());
   }, []);
 
@@ -75,6 +96,8 @@ export function MissionDashboard() {
   }, [locale]);
 
   const ui = UI_STRINGS[locale];
+  const profile = MISSION_PROFILE[locale];
+  const envMeta = ENVIRONMENT_MISSION_META[locale][environment];
 
   const latest =
     history[history.length - 1] ??
@@ -92,12 +115,25 @@ export function MissionDashboard() {
         (a, b) => a.missionDay - b.missionDay
       );
       saveLogs(next);
+      void fetch("/api/health-log", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...reading, syncAck: true }),
+      }).catch(() => {
+        /* optional ground sync */
+      });
       return next;
     });
   }, []);
 
-  function simulateCritical() {
-    appendReading(CRITICAL_SCENARIO_READING);
+  function applyScenario(reading: VitalReadings) {
+    appendReading({ ...reading, environment });
+  }
+
+  function resetBaseline() {
+    const baseline = buildMockMissionHistory(environment);
+    setHistory(baseline);
+    saveLogs(baseline);
   }
 
   function toggleLocale() {
@@ -108,21 +144,24 @@ export function MissionDashboard() {
   const envLabel = ENVIRONMENT_LABELS[locale][environment];
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
-      <header className="border-b border-slate-800 bg-slate-900/80 px-4 py-4 sm:px-8">
+    <div className="min-h-screen bg-base-100 text-base-content">
+      <a href="#main-content" className="skip-link">
+        {ui.skipToMain}
+      </a>
+      <header className="border-b border-base-300 bg-base-200/80 px-4 py-4 sm:px-8">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <Rocket className="h-8 w-8 text-sky-400" aria-hidden />
+            <Rocket className="h-8 w-8 text-primary" aria-hidden />
             <div>
               <h1 className="text-xl font-bold tracking-tight">{ui.appTitle}</h1>
-              <p className="text-sm text-slate-400">{ui.appSubtitle}</p>
+              <p className="text-sm text-base-content/80">{ui.appSubtitle}</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={toggleLocale}
-              className="inline-flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-300 hover:border-slate-500 hover:text-slate-100"
+              className="btn btn-sm btn-outline gap-2"
               aria-label={
                 locale === "es" ? "Cambiar idioma a inglés" : "Switch language to Spanish"
               }
@@ -131,44 +170,106 @@ export function MissionDashboard() {
               {ui.switchToEnglish}
             </button>
             <div
-              className={`flex items-center gap-2 rounded-lg border border-slate-700 px-4 py-2 ${overall.bg}`}
+              role="status"
+              aria-live="polite"
+              aria-atomic="true"
+              aria-label={ui.crewStatusLive}
+              className={`badge badge-lg h-auto min-h-10 gap-2 border border-base-300 px-4 py-2 ${overall.bg}`}
             >
-              <Radio className={`h-4 w-4 ${overall.text}`} />
-              <span className="text-sm font-medium">{evaluation.headline}</span>
-              <span className={`text-xs uppercase ${overall.text}`}>
+              <Radio className={`h-4 w-4 shrink-0 ${overall.text}`} aria-hidden />
+              <span className="text-sm font-medium text-base-content">
+                {evaluation.headline}
+              </span>
+              <span className={`text-xs font-semibold uppercase ${overall.text}`}>
                 {statusLabelForLocale(locale, evaluation.overallStatus)}
               </span>
             </div>
           </div>
         </div>
+
+        <div className="mx-auto mt-4 flex max-w-6xl flex-wrap gap-3">
+          <MissionBadge icon={Users} title={ui.artemisProfile}>
+            <span>{profile.missionName}</span>
+            <span className="text-base-content/50" aria-hidden>
+              ·
+            </span>
+            <span>
+              {profile.commanderRole} / {profile.medicalOfficerRole}
+            </span>
+            <span className="text-base-content/50" aria-hidden>
+              ·
+            </span>
+            <span>{envLabel}</span>
+          </MissionBadge>
+          <MissionBadge icon={Clock} title={ui.communicationLatency}>
+            {envMeta.latencyLabel}
+          </MissionBadge>
+          <MissionBadge icon={Shield} title={ui.activeEnvironmentRisks}>
+            {envMeta.primaryHazards
+              .map((h) => HAZARD_DISPLAY[locale][h].title)
+              .join(" · ")}
+          </MissionBadge>
+        </div>
+        <p className="mx-auto mt-2 max-w-6xl text-sm text-base-content/75">
+          <strong className="font-medium text-base-content">{ui.whyAutonomous}: </strong>
+          {envMeta.autonomyNote}
+        </p>
       </header>
 
-      <main className="mx-auto max-w-6xl space-y-8 px-4 py-8 sm:px-8">
-        <section className="flex flex-wrap gap-3">
-          <button
-            type="button"
-            onClick={simulateCritical}
-            className="inline-flex items-center gap-2 rounded-lg border border-rose-500/50 bg-rose-500/15 px-4 py-2 text-sm font-medium text-rose-200 hover:bg-rose-500/25"
-          >
-            <AlertTriangle className="h-4 w-4" />
-            {ui.simulateCritical}
-          </button>
-          <p className="self-center text-sm text-slate-500">
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="mx-auto max-w-6xl space-y-8 px-4 py-8 sm:px-8"
+      >
+        <section className="flex flex-wrap gap-2" aria-labelledby="sim-controls-heading">
+          <h2 id="sim-controls-heading" className="sr-only">
+            {ui.simulationControls}
+          </h2>
+          <ScenarioButton
+            icon={Sun}
+            label={ui.simulateSolarEvent}
+            onClick={() => applyScenario(solarParticleScenario(environment))}
+            className="border-amber-500/50 bg-amber-500/15 text-amber-200 hover:bg-amber-500/25"
+          />
+          <ScenarioButton
+            icon={AlertTriangle}
+            label={ui.simulateCardioDehydration}
+            onClick={() => applyScenario(cardioDehydrationScenario(environment))}
+            className="border-rose-500/50 bg-rose-500/15 text-rose-200 hover:bg-rose-500/25"
+          />
+          <ScenarioButton
+            icon={Radio}
+            label={ui.simulateIsolationDrift}
+            onClick={() => applyScenario(isolationDriftScenario(environment))}
+            className="border-violet-500/50 bg-violet-500/15 text-violet-200 hover:bg-violet-500/25"
+          />
+          <ScenarioButton
+            icon={RotateCcw}
+            label={ui.resetBaseline}
+            onClick={resetBaseline}
+            className="border-slate-600 bg-slate-800/80 text-slate-200 hover:bg-slate-800"
+          />
+          <p className="w-full text-sm text-base-content/75 sm:w-auto sm:self-center">
             {ui.missionDay} {latest.missionDay} — {envLabel}
           </p>
         </section>
 
-        <section className="grid gap-8 lg:grid-cols-2">
-          <BodyMap systemStatuses={evaluation.systemStatuses} locale={locale} />
+        <section className="grid gap-8 lg:grid-cols-2" aria-labelledby="body-systems-heading">
+          <div>
+            <h2 id="body-systems-heading" className="mb-4 text-lg font-semibold">
+              {ui.bodyMapTitle}
+            </h2>
+            <BodyMap systemStatuses={evaluation.systemStatuses} locale={locale} />
+          </div>
           <div className="space-y-4">
             <h2 className="text-lg font-semibold">{ui.recommendedActions}</h2>
             <ul className="space-y-3">
               {evaluation.guidance.map((g, i) => (
                 <li
                   key={i}
-                  className="rounded-lg border border-slate-800 bg-slate-900/50 p-3 text-sm text-slate-300"
+                  className="card card-border bg-base-200/60 p-3 text-sm text-base-content/85"
                 >
-                  <p className="text-slate-100">{g.whyNeededInSpace}</p>
+                  <p className="font-medium text-base-content">{g.whyNeededInSpace}</p>
                   <ul className="mt-2 list-disc space-y-1 pl-4">
                     {g.recommendedActions.map((a) => (
                       <li key={a}>{a}</li>
@@ -177,8 +278,23 @@ export function MissionDashboard() {
                 </li>
               ))}
             </ul>
-            <p className="text-xs text-slate-500">
+            <p className="text-sm text-base-content/75">
               {ui.escalation}: {escalationLabel(locale, evaluation.escalationLevel)}
+            </p>
+          </div>
+        </section>
+
+        <section className="grid gap-8 lg:grid-cols-2" aria-label={ui.dailyCountermeasures}>
+          <MissionRoutinePanel
+            locale={locale}
+            onReactionRecorded={(ms) => setPendingReactionMs(ms)}
+          />
+          <div className="text-sm text-base-content/75">
+            <p>{profile.program}</p>
+            <p className="mt-2 text-sm">
+              {locale === "es"
+                ? "La sincronización con Tierra es opcional; la evaluación clínica se ejecuta en el navegador."
+                : "Ground sync is optional; clinical evaluation runs entirely in the browser."}
             </p>
           </div>
         </section>
@@ -195,13 +311,56 @@ export function MissionDashboard() {
         <section>
           <h2 className="mb-4 text-lg font-semibold">{ui.logVitals}</h2>
           <VitalsInputForm
+            key={`${environment}-${nextDay}`}
             environment={environment}
             missionDay={nextDay}
             locale={locale}
             onSubmit={appendReading}
+            pendingReactionMs={pendingReactionMs}
           />
         </section>
       </main>
     </div>
+  );
+}
+
+function MissionBadge({
+  icon: Icon,
+  title,
+  children,
+}: {
+  icon: typeof Users;
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="badge badge-lg h-auto min-h-9 flex-wrap gap-2 border-base-300 bg-base-200/80 px-3 py-2 text-xs text-base-content/85">
+      <Icon className="h-3.5 w-3.5 text-primary" aria-hidden />
+      <span className="font-medium text-base-content">{title}:</span>
+      {children}
+    </div>
+  );
+}
+
+function ScenarioButton({
+  icon: Icon,
+  label,
+  onClick,
+  className,
+}: {
+  icon: typeof Sun;
+  label: string;
+  onClick: () => void;
+  className: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`btn btn-sm gap-2 border ${className}`}
+    >
+      <Icon className="h-4 w-4" aria-hidden />
+      {label}
+    </button>
   );
 }

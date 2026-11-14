@@ -8,11 +8,13 @@ import {
   Legend,
   Line,
   LineChart,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
+import { RADIATION_CHART_CAUTION_MSV } from "@/data/nasaKnowledge";
 import { buildMockMissionHistory } from "@/data/mockMissionHistory";
 import {
   ENVIRONMENT_LABELS,
@@ -47,18 +49,26 @@ export function HealthCharts({
   );
 
   const chartData = useMemo(() => {
-    const source = history.length
-      ? history.filter((h) => h.environment === environment)
-      : buildMockMissionHistory(environment);
-    return source.map((h) => ({
-      day: `D${h.missionDay}`,
-      missionDay: h.missionDay,
-      systolicBP: h.systolicBP,
-      heartRate: h.heartRate,
-      sleepHours: h.sleepHours,
-      bloodSugar: h.bloodSugar,
-      moodScore: h.moodScore,
-    }));
+    const filtered = history.filter((h) => h.environment === environment);
+    const source =
+      filtered.length > 0 ? filtered : buildMockMissionHistory(environment);
+    return source.map((h, index) => {
+      const dose = h.radiationMsv ?? 0;
+      const cumulative = source
+        .slice(0, index + 1)
+        .reduce((acc, row) => acc + (row.radiationMsv ?? 0), 0);
+      return {
+        day: `D${h.missionDay}`,
+        missionDay: h.missionDay,
+        systolicBP: h.systolicBP,
+        heartRate: h.heartRate,
+        sleepHours: h.sleepHours,
+        bloodSugar: h.bloodSugar,
+        moodScore: h.moodScore,
+        radiationMsv: dose,
+        radiationCumulative: Math.round(cumulative * 100) / 100,
+      };
+    });
   }, [history, environment]);
 
   function handleEnvChange(env: MissionEnvironment) {
@@ -68,17 +78,23 @@ export function HealthCharts({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-sm text-slate-400">{ui.missionEnvironment}:</span>
+      <div
+        role="tablist"
+        aria-label={ui.missionEnvironment}
+        className="flex flex-wrap items-center gap-2"
+      >
+        <span className="text-sm text-base-content/80">{ui.missionEnvironment}:</span>
         {ENVIRONMENT_IDS.map((id) => (
           <button
             key={id}
             type="button"
+            role="tab"
+            id={`env-tab-${id}`}
+            aria-selected={environment === id}
+            aria-controls={`env-panel-${id}`}
             onClick={() => handleEnvChange(id)}
-            className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-              environment === id
-                ? "border-sky-500 bg-sky-500/20 text-sky-200"
-                : "border-slate-700 text-slate-400 hover:border-slate-500"
+            className={`btn btn-xs sm:btn-sm ${
+              environment === id ? "btn-primary" : "btn-outline"
             }`}
           >
             {envLabels[id]}
@@ -86,8 +102,14 @@ export function HealthCharts({
         ))}
       </div>
 
-      <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
-        <h3 className="mb-3 text-sm font-medium text-slate-200">{ui.chartCardio}</h3>
+      <div
+        id={`env-panel-${environment}`}
+        role="tabpanel"
+        aria-labelledby={`env-tab-${environment}`}
+        className="space-y-6"
+      >
+      <div className="card card-border bg-base-200/50 p-4">
+        <h3 className="mb-3 text-sm font-medium">{ui.chartCardio}</h3>
         <ChartContainer>
           <LineChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
@@ -124,8 +146,8 @@ export function HealthCharts({
         </ChartContainer>
       </div>
 
-      <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
-        <h3 className="mb-3 text-sm font-medium text-slate-200">{ui.chartRecovery}</h3>
+      <div className="card card-border bg-base-200/50 p-4">
+        <h3 className="mb-3 text-sm font-medium">{ui.chartRecovery}</h3>
         <ChartContainer>
           <AreaChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
@@ -155,6 +177,54 @@ export function HealthCharts({
             />
           </AreaChart>
         </ChartContainer>
+      </div>
+
+      <div className="card card-border bg-base-200/50 p-4">
+        <h3 className="mb-3 text-sm font-medium">{ui.chartRadiation}</h3>
+        <ChartContainer>
+          <LineChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+            <XAxis dataKey="day" stroke="#94a3b8" fontSize={12} />
+            <YAxis stroke="#94a3b8" fontSize={12} />
+            <Tooltip
+              contentStyle={{
+                background: "#0f172a",
+                border: "1px solid #334155",
+                borderRadius: 8,
+              }}
+            />
+            <Legend />
+            <ReferenceLine
+              y={RADIATION_CHART_CAUTION_MSV}
+              stroke="#fbbf24"
+              strokeDasharray="4 4"
+              label={{
+                value: ui.radiationCautionLine,
+                fill: "#fbbf24",
+                fontSize: 10,
+                position: "insideTopRight",
+              }}
+            />
+            <Line
+              type="monotone"
+              dataKey="radiationMsv"
+              name={ui.vitals.radiationMsv}
+              stroke="#f472b6"
+              strokeWidth={2}
+              dot={false}
+            />
+            <Line
+              type="monotone"
+              dataKey="radiationCumulative"
+              name={locale === "es" ? "Acumulado (mSv)" : "Cumulative (mSv)"}
+              stroke="#fb7185"
+              strokeWidth={2}
+              strokeDasharray="6 3"
+              dot={false}
+            />
+          </LineChart>
+        </ChartContainer>
+      </div>
       </div>
     </div>
   );

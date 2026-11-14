@@ -13,18 +13,19 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Control de salud de misión | NASA Space Apps",
+  title: "Mission Health Control | NASA Space Apps",
   description:
-    "Monitoreo de salud del astronauta sin conexión para misiones espaciales.",
+    "Offline-first astronaut health monitoring for space missions.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
-      lang="es"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      lang="en"
+      data-theme="mission"
+      className={`${geistSans.variable} ${geistMono.variable} h-full`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="flex min-h-full flex-col">{children}</body>
     </html>
   );
 }

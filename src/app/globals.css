@@ -1,26 +1,107 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@plugin "daisyui" {
+  themes: mission --default;
+}
+
+@plugin "daisyui/theme" {
+  name: "mission";
+  default: true;
+  prefersdark: true;
+  color-scheme: dark;
+  --color-base-100: oklch(22% 0.02 264);
+  --color-base-200: oklch(28% 0.025 264);
+  --color-base-300: oklch(36% 0.03 264);
+  --color-base-content: oklch(96% 0.01 264);
+  --color-primary: oklch(74% 0.14 230);
+  --color-primary-content: oklch(20% 0.04 230);
+  --color-secondary: oklch(65% 0.08 264);
+  --color-secondary-content: oklch(98% 0.01 264);
+  --color-accent: oklch(72% 0.17 165);
+  --color-accent-content: oklch(20% 0.04 165);
+  --color-neutral: oklch(32% 0.02 264);
+  --color-neutral-content: oklch(92% 0.01 264);
+  --color-info: oklch(70% 0.12 230);
+  --color-info-content: oklch(18% 0.04 230);
+  --color-success: oklch(72% 0.16 155);
+  --color-success-content: oklch(18% 0.04 155);
+  --color-warning: oklch(80% 0.14 85);
+  --color-warning-content: oklch(22% 0.04 85);
+  --color-error: oklch(68% 0.18 15);
+  --color-error-content: oklch(98% 0.01 15);
+  --radius-selector: 0.5rem;
+  --radius-field: 0.5rem;
+  --radius-box: 0.75rem;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  body {
+    @apply min-h-full bg-base-100 font-sans text-base text-base-content antialiased;
+  }
+
+  :where(
+    button:not(:disabled),
+    [role="button"]:not([aria-disabled="true"]),
+    a[href],
+    summary,
+    label[for],
+    input[type="checkbox"],
+    input[type="radio"],
+    input[type="file"],
+    select
+  ) {
+    cursor: pointer;
+  }
+
+  :where(button:disabled, [aria-disabled="true"]) {
+    cursor: not-allowed;
+  }
+
+  :focus {
+    outline: none;
+  }
+
+  :focus-visible {
+  outline: 2px solid oklch(74% 0.14 230);
+  outline-offset: 2px;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@utility sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+@utility skip-link {
+  @apply sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-box focus:bg-primary focus:px-4 focus:py-2 focus:text-primary-content focus:shadow-lg;
 }

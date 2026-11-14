@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { ExternalLink } from "lucide-react";
 import { NASA_HAZARDS_KNOWLEDGE } from "@/data/nasaKnowledge";
 import {
   BODY_REGION_COPY,
@@ -56,16 +57,67 @@ export function BodyMap({ systemStatuses, locale = "es" }: BodyMapProps) {
     h.relatedSystems.includes(selected)
   );
 
+  function selectRegion(id: RegionId) {
+    setSelected(id);
+  }
+
+  function onRegionKeyDown(
+    event: React.KeyboardEvent<HTMLButtonElement>,
+    id: RegionId
+  ) {
+    const index = REGION_IDS.indexOf(id);
+    if (index < 0) return;
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+      event.preventDefault();
+      selectRegion(REGION_IDS[(index + 1) % REGION_IDS.length]);
+    } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+      event.preventDefault();
+      selectRegion(REGION_IDS[(index - 1 + REGION_IDS.length) % REGION_IDS.length]);
+    }
+  }
+
   return (
     <div className="grid gap-4 lg:grid-cols-2">
-      <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+      <div className="card card-border bg-base-200/60 p-4">
+        <div
+          role="radiogroup"
+          aria-label={ui.bodyRegionPicker}
+          className="mb-3 flex flex-wrap gap-2"
+        >
+          {REGION_IDS.map((id) => {
+            const st = statusBySystem.get(id) ?? "normal";
+            const regionLabel = regions[id].label;
+            const statusText = statusLabelForLocale(locale, st);
+            return (
+              <button
+                key={id}
+                type="button"
+                role="radio"
+                aria-checked={selected === id}
+                aria-label={`${regionLabel}, ${statusText}`}
+                onClick={() => selectRegion(id)}
+                onKeyDown={(e) => onRegionKeyDown(e, id)}
+                className={`btn btn-xs sm:btn-sm ${
+                  selected === id ? "btn-primary" : "btn-outline"
+                }`}
+              >
+                <span
+                  className={`h-2 w-2 rounded-full ${statusStyles(st).dot}`}
+                  aria-hidden
+                />
+                {regionLabel}
+              </button>
+            );
+          })}
+        </div>
+
         <svg
           viewBox="0 0 190 440"
           className="mx-auto h-[320px] w-auto"
-          role="img"
-          aria-label={ui.bodyMapAria}
+          aria-hidden
+          focusable="false"
         >
-          <ellipse cx="95" cy="360" rx="42" ry="55" className="fill-slate-800/80" />
+          <ellipse cx="95" cy="360" rx="42" ry="55" className="fill-base-300/80" />
           {REGION_IDS.filter((id) => id !== "immune_musculoskeletal").map((id) => {
             const st = statusBySystem.get(id) ?? "normal";
             const fill =
@@ -83,8 +135,7 @@ export function BodyMap({ systemStatuses, locale = "es" }: BodyMapProps) {
                 fillOpacity={active ? 0.55 : 0.35}
                 stroke={active ? "#e2e8f0" : "#475569"}
                 strokeWidth={active ? 2.5 : 1.5}
-                className="cursor-pointer transition-all"
-                onClick={() => setSelected(id)}
+                className="pointer-events-none transition-all"
               />
             );
           })}
@@ -100,33 +151,64 @@ export function BodyMap({ systemStatuses, locale = "es" }: BodyMapProps) {
             }
             strokeWidth={selected === "immune_musculoskeletal" ? 3 : 2}
             strokeLinecap="round"
-            className="cursor-pointer"
-            onClick={() => setSelected("immune_musculoskeletal")}
           />
         </svg>
-        <p className="text-center text-xs text-slate-500">{ui.bodyMapHint}</p>
+        <p className="text-center text-sm text-base-content/75">{ui.bodyMapHint}</p>
       </div>
 
-      <div className={`rounded-xl border border-slate-800 p-4 ring-1 ${styles.ring} ${styles.bg}`}>
+      <div
+        className={`card card-border p-4 ring-1 ${styles.ring} ${styles.bg}`}
+        aria-live="polite"
+      >
         <div className="flex items-center gap-2">
-          <span className={`h-2.5 w-2.5 rounded-full ${styles.dot}`} />
-          <h3 className="text-lg font-semibold text-slate-100">{regionCopy.label}</h3>
-          <span className={`ml-auto text-sm font-medium ${styles.text}`}>
+          <span className={`h-2.5 w-2.5 rounded-full ${styles.dot}`} aria-hidden />
+          <h3 className="text-lg font-semibold text-base-content">{regionCopy.label}</h3>
+          <span className={`ml-auto text-sm font-semibold ${styles.text}`}>
             {statusLabelForLocale(locale, status)}
           </span>
         </div>
-        <p className="mt-2 text-sm text-slate-300">{regionCopy.summary}</p>
-        <p className="mt-3 text-xs font-medium uppercase tracking-wide text-slate-500">
+        <p className="mt-2 text-sm text-base-content/85">{regionCopy.summary}</p>
+        <p className="mt-3 text-xs font-medium uppercase tracking-wide text-base-content/70">
           {ui.relatedHazards}
         </p>
-        <ul className="mt-2 space-y-2 text-sm text-slate-300">
+        <ul className="mt-2 space-y-4 text-sm text-base-content/85">
           {relatedHazards.map((h) => {
             const display = HAZARD_DISPLAY[locale][h.hazard];
             return (
-              <li key={h.hazard}>
-                <span className="font-medium text-slate-100">{display.title}</span>
+              <li key={h.hazard} className="border-b border-base-300/80 pb-3 last:border-0">
+                <span className="font-medium text-base-content">{display.title}</span>
                 {" — "}
                 {display.shortDescription}
+                {h.hrpRisks && h.hrpRisks.length > 0 && (
+                  <p className="mt-1 text-xs text-base-content/75">
+                    <span className="font-medium text-base-content/90">
+                      {ui.hrpRisksLabel}:{" "}
+                    </span>
+                    {h.hrpRisks.join(" · ")}
+                  </p>
+                )}
+                {h.officialLinks && h.officialLinks.length > 0 && (
+                  <div className="mt-2">
+                    <p className="text-xs font-medium text-base-content/70">
+                      {ui.officialReferences}
+                    </p>
+                    <ul className="mt-1 space-y-1">
+                      {h.officialLinks.map((link) => (
+                        <li key={link.url}>
+                          <a
+                            href={link.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="link link-primary inline-flex items-center gap-1"
+                          >
+                            <ExternalLink className="h-3 w-3" aria-hidden />
+                            {link.label}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </li>
             );
           })}
