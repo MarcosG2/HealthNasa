@@ -20,10 +20,18 @@ import {
   Users,
 } from "lucide-react";
 import { buildMockMissionHistory, MOCK_MISSION_HISTORY } from "@/data/mockMissionHistory";
+import { missionLogEventsForDay } from "@/data/intradaySamples";
 import { BodyMap } from "@/features/body-map/BodyMap";
 import { evaluateHealth } from "@/features/rules-engine/evaluateHealth";
 import { DayReplayDetail } from "@/features/timeline/DayReplayDetail";
 import { HealthCharts } from "@/features/timeline/HealthCharts";
+import { VitalsInputForm } from "@/features/vitals-form/VitalsInputForm";
+import {
+  clinicalReadingForEvaluation,
+  dailyReadingForMissionDay,
+  isIntradaySample,
+} from "@/lib/clinicalReading";
+import { loadMissionLogs, LOG_KEY, saveMissionLogs } from "@/lib/missionLogsStorage";
 import { formatMissionTimestamp } from "@/lib/missionTime";
 import { MissionRoutinePanel } from "@/features/vitals-form/MissionRoutinePanel";
 import {
@@ -39,15 +47,20 @@ import {
 } from "@/lib/locale";
 import { statusStyles } from "@/lib/statusColors";
 import { fetchAstronautRoster, fetchMissionFeed } from "@/lib/fetchMissionFeed";
+import { fetchMissionTelemetryArchive } from "@/lib/telemetryArchive";
+import type { MissionTelemetryArchive } from "@/types/health";
 import { mergeActiveScenarios } from "@/lib/mergeMissionScenarios";
 import type {
+  CardioChartScale,
+  ChartPanelId,
+  RadiationChartScale,
+  RecoveryChartScale,
   MissionEnvironment,
   MissionScenarioId,
   MockAstronautProfile,
   VitalReadings,
 } from "@/types/health";
 
-const LOG_KEY = "healthnasa_mission_logs";
 const SCENARIOS_KEY = "healthnasa_active_scenarios";
 const ASTRONAUT_KEY = "healthnasa_astronaut_id";
 
@@ -85,28 +98,6 @@ const ENVIRONMENT_IDS: MissionEnvironment[] = [
   "lunar_base",
   "mars_base",
 ];
-
-function loadLogs(): VitalReadings[] {
-  if (typeof window === "undefined") return MOCK_MISSION_HISTORY;
-  try {
-    const raw = localStorage.getItem(LOG_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw) as VitalReadings[];
-      if (parsed.length) return parsed;
-    }
-  } catch {
-    /* ignore */
-  }
-  return MOCK_MISSION_HISTORY;
-}
-
-function saveLogs(logs: VitalReadings[]) {
-  try {
-    localStorage.setItem(LOG_KEY, JSON.stringify(logs));
-  } catch {
-    /* ignore */
-  }
-}
 
 function loadActiveScenarios(): MissionScenarioId[] {
   if (typeof window === "undefined") return [];
@@ -179,6 +170,17 @@ export function MissionDashboard() {
   const [selectedAstronautId, setSelectedAstronautId] = useState<string>("eva-chen");
   const [roster, setRoster] = useState<MockAstronautProfile[]>(ASTRONAUT_ROSTER);
   const [replayFocus, setReplayFocus] = useState<VitalReadings | null>(null);
+  const [cardioScale, setCardioScale] = useState<CardioChartScale>("day");
+  const [recoveryScale, setRecoveryScale] = useState<RecoveryChartScale>("day");
+  const [radiationScale, setRadiationScale] = useState<RadiationChartScale>("day");
+  const [cardioFocusDay, setCardioFocusDay] = useState<number | null>(null);
+  const [recoveryFocusDay, setRecoveryFocusDay] = useState<number | null>(null);
+  const [radiationFocusDay, setRadiationFocusDay] = useState<number | null>(null);
+  const [chartFocusHour, setChartFocusHour] = useState<number | null>(null);
+  const [telemetryArchive, setTelemetryArchive] =
+    useState<MissionTelemetryArchive | null>(null);
+  const [archiveLoading, setArchiveLoading] = useState(false);
+  const [archiveLoaded, setArchiveLoaded] = useState(false);
   const baselineLoadSeq = useRef(0);
   const bodyTrackerAnchorRef = useRef<HTMLElement | null>(null);
   const simControlsLocked = replayFocus !== null;
@@ -186,7 +188,14 @@ export function MissionDashboard() {
   useEffect(() => {
     // Post-mount hydration: SSR uses MOCK_MISSION_HISTORY; client restores saved logs.
     // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional hydration guard
-    setBaselineHistory(loadLogs());
+    const hydratedLogs = loadMissionLogs();
+    setBaselineHistory(hydratedLogs);
+    if (
+      hydratedLogs.length >= 28 &&
+      hydratedLogs.some((r) => r.extraMetrics?.telemetrySource === "generator")
+    ) {
+      setArchiveLoaded(true);
+    }
     setLocale(loadLocale());
     setActiveScenarios(loadActiveScenarios());
     const astronautId = loadAstronautId();
@@ -204,12 +213,17 @@ export function MissionDashboard() {
         if (cancelled || !feed?.telemetry?.length) return;
         setBaselineHistory(feed.telemetry);
         setEnvironment(feed.environment);
-        saveLogs(feed.telemetry);
+        saveMissionLogs(feed.telemetry);
         setMockFeedLabel(
           `${feed.crew.callSign} · ${feed.crew.agency} · ${feed.source}`
         );
       });
     }
+    void fetchMissionTelemetryArchive().then((archive) => {
+      if (cancelled || !archive) return;
+      setTelemetryArchive(archive);
+    });
+
     return () => {
       cancelled = true;
     };
@@ -236,16 +250,31 @@ export function MissionDashboard() {
     history[history.length - 1] ??
     MOCK_MISSION_HISTORY[MOCK_MISSION_HISTORY.length - 1];
 
+  const dailyHistory = useMemo(
+    () => history.filter((row) => !isIntradaySample(row)),
+    [history]
+  );
+
   const focusReading = replayFocus ?? latest;
   const historyBeforeFocus = useMemo(() => {
-    if (!replayFocus) return history.slice(0, -1);
-    return history.filter((row) => row.missionDay < replayFocus.missionDay);
-  }, [history, replayFocus]);
+    if (!replayFocus) return dailyHistory.slice(0, -1);
+    return dailyHistory.filter((row) => row.missionDay < replayFocus.missionDay);
+  }, [dailyHistory, replayFocus]);
+
+  const clinicalFocus = useMemo(
+    () => clinicalReadingForEvaluation(focusReading, dailyHistory),
+    [focusReading, dailyHistory]
+  );
 
   const evaluation = useMemo(
-    () => evaluateHealth(focusReading, historyBeforeFocus, locale),
-    [focusReading, historyBeforeFocus, locale]
+    () => evaluateHealth(clinicalFocus, historyBeforeFocus, locale),
+    [clinicalFocus, historyBeforeFocus, locale]
   );
+
+  const timelineFocusHour =
+    cardioScale === "5sec"
+      ? (chartFocusHour ?? new Date(latest.recordedAt).getUTCHours())
+      : chartFocusHour;
 
   const envMeta = ENVIRONMENT_MISSION_META[locale][focusReading.environment];
 
@@ -265,7 +294,7 @@ export function MissionDashboard() {
       const telemetry = feed.telemetry.map((row) => ({ ...row, environment: env }));
       setBaselineHistory(telemetry);
       setEnvironment(env);
-      saveLogs(telemetry);
+      saveMissionLogs(telemetry);
       setMockFeedLabel(
         `${feed.crew.callSign} · ${feed.crew.agency} · ${feed.source}`
       );
@@ -274,7 +303,43 @@ export function MissionDashboard() {
     const baseline = buildMockMissionHistory(env);
     setBaselineHistory(baseline);
     setEnvironment(env);
-    saveLogs(baseline);
+    saveMissionLogs(baseline);
+  }
+
+  function resetChartScales() {
+    setCardioScale("day");
+    setRecoveryScale("day");
+    setRadiationScale("day");
+    setCardioFocusDay(null);
+    setRecoveryFocusDay(null);
+    setRadiationFocusDay(null);
+    setChartFocusHour(null);
+  }
+
+  const missionDayOptions = useMemo(
+    () => dailyHistory.map((r) => r.missionDay).sort((a, b) => a - b),
+    [dailyHistory]
+  );
+
+  function onCardioScaleChange(next: CardioChartScale) {
+    setCardioScale(next);
+    if (next !== "day" && cardioFocusDay === null) {
+      setCardioFocusDay(latest.missionDay);
+    }
+  }
+
+  function onRecoveryScaleChange(next: RecoveryChartScale) {
+    setRecoveryScale(next);
+    if (next === "hour" && recoveryFocusDay === null) {
+      setRecoveryFocusDay(latest.missionDay);
+    }
+  }
+
+  function onRadiationScaleChange(next: RadiationChartScale) {
+    setRadiationScale(next);
+    if (next === "hour" && radiationFocusDay === null) {
+      setRadiationFocusDay(latest.missionDay);
+    }
   }
 
   function resetBaseline() {
@@ -282,6 +347,8 @@ export function MissionDashboard() {
     setActiveScenarios([]);
     saveActiveScenarios([]);
     setReplayFocus(null);
+    resetChartScales();
+    setArchiveLoaded(false);
     void restoreBaselineFromFeed();
   }
 
@@ -303,6 +370,8 @@ export function MissionDashboard() {
     setActiveScenarios([]);
     saveActiveScenarios([]);
     setReplayFocus(null);
+    resetChartScales();
+    setArchiveLoaded(false);
     await restoreBaselineFromFeed(astronautId);
   }
 
@@ -314,18 +383,109 @@ export function MissionDashboard() {
     if (simControlsLocked || env === environment) return;
     setEnvironment(env);
     setReplayFocus(null);
+    resetChartScales();
+    setArchiveLoaded(false);
     void restoreBaselineFromFeed(selectedAstronautId, env);
   }
 
-  function onChartDaySelect(reading: VitalReadings) {
-    setReplayFocus(reading);
+  function returnToLiveNow() {
+    setReplayFocus(null);
+    resetChartScales();
+  }
+
+  function onChartPointSelect(reading: VitalReadings, panel: ChartPanelId) {
+    const hourUtc = new Date(reading.recordedAt).getUTCHours();
+    const daily =
+      dailyReadingForMissionDay(dailyHistory, reading.missionDay) ?? reading;
+
+    if (panel === "cardio") {
+      if (cardioScale === "day") {
+        setCardioFocusDay(daily.missionDay);
+        setCardioScale("minute");
+        setChartFocusHour(null);
+        setReplayFocus(daily);
+      } else if (cardioScale === "minute") {
+        setCardioFocusDay(daily.missionDay);
+        setChartFocusHour(hourUtc);
+        setCardioScale("5sec");
+        setReplayFocus(reading);
+      } else {
+        setReplayFocus(reading);
+      }
+    } else if (panel === "recovery") {
+      if (recoveryScale === "day") {
+        setRecoveryFocusDay(daily.missionDay);
+        setRecoveryScale("hour");
+        setReplayFocus(daily);
+      } else {
+        setReplayFocus(reading);
+      }
+    } else if (radiationScale === "day") {
+      setRadiationFocusDay(daily.missionDay);
+      setRadiationScale("hour");
+      setReplayFocus(daily);
+    } else {
+      setReplayFocus(reading);
+    }
+
     requestAnimationFrame(() => {
       bodyTrackerAnchorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
   }
 
-  function returnToLiveNow() {
-    setReplayFocus(null);
+  function appendReading(reading: VitalReadings) {
+    if (simControlsLocked) return;
+    const rowEnv = reading.environment ?? environment;
+    const enriched: VitalReadings = {
+      ...reading,
+      environment: rowEnv,
+      extraMetrics: {
+        missionEvents: missionLogEventsForDay(reading.missionDay, rowEnv),
+        ...reading.extraMetrics,
+      },
+    };
+    if (pendingReactionMs !== undefined) {
+      enriched.extraMetrics = {
+        ...enriched.extraMetrics,
+        reactionTimeMs: pendingReactionMs,
+      };
+    }
+    setBaselineHistory((prev) => {
+      const daily = prev.filter((r) => !isIntradaySample(r));
+      const withoutDay = daily.filter((r) => r.missionDay !== enriched.missionDay);
+      const next = [...withoutDay, enriched].sort((a, b) => a.missionDay - b.missionDay);
+      saveMissionLogs(next);
+      return next;
+    });
+    setPendingReactionMs(undefined);
+    returnToLiveNow();
+  }
+
+  async function load30DayArchive() {
+    if (simControlsLocked || archiveLoading || archiveLoaded) return;
+    setArchiveLoading(true);
+    try {
+      const archive =
+        telemetryArchive ?? (await fetchMissionTelemetryArchive());
+      if (!archive?.daily.length) {
+        window.alert(ui.load30DayArchiveMissing);
+        return;
+      }
+      setTelemetryArchive(archive);
+      setActiveScenarios([]);
+      saveActiveScenarios([]);
+      setReplayFocus(null);
+      resetChartScales();
+      setBaselineHistory(archive.daily);
+      setEnvironment(archive.meta.environment);
+      saveMissionLogs(archive.daily);
+      setArchiveLoaded(true);
+      setMockFeedLabel(
+        `${archive.meta.missionDays}d layered telemetry · hot ${archive.meta.hotWindowHours}h`
+      );
+    } finally {
+      setArchiveLoading(false);
+    }
   }
 
   const lastVisualAttachment = findLastVisualAttachment(history);
@@ -381,8 +541,9 @@ export function MissionDashboard() {
                     {statusLabelForLocale(locale, evaluation.overallStatus)}
                   </p>
                 </div>
-                <p className="mission-readout ml-auto hidden self-center sm:block">
-                  {ui.missionDay} {latest.missionDay}
+                <p className="mission-readout ml-auto hidden self-center text-right text-xs sm:block">
+                  {replayFocus ? `${ui.crewStatusReview} — ` : ""}
+                  {ui.missionDay} {focusReading.missionDay}
                 </p>
               </div>
             </div>
@@ -401,9 +562,11 @@ export function MissionDashboard() {
                 {selectedAstronaut?.role ?? profile.medicalOfficerRole}
               </p>
               <p className="text-xs text-base-content/70">
-                {selectedAstronaut
-                  ? archetypeLabel(selectedAstronaut.archetype, locale)
-                  : profile.program}
+                {replayFocus
+                  ? `${statusLabelForLocale(locale, evaluation.overallStatus)} · ${evaluation.headline}`
+                  : selectedAstronaut
+                    ? archetypeLabel(selectedAstronaut.archetype, locale)
+                    : profile.program}
               </p>
               <p className="mission-readout text-primary/90">{envLabel}</p>
             </TelemetryField>
@@ -462,12 +625,22 @@ export function MissionDashboard() {
                   </span>
                 </p>
               </div>
-              <p
-                className={`rounded-field px-3 py-2 text-xs font-semibold uppercase ${overallStyles.bg} ${overallStyles.text}`}
-                role="status"
-              >
-                {statusLabelForLocale(locale, evaluation.overallStatus)}
-              </p>
+              <div className="flex flex-col items-stretch gap-2 sm:items-end">
+                <p
+                  className={`rounded-field px-3 py-2 text-xs font-semibold uppercase ${overallStyles.bg} ${overallStyles.text}`}
+                  role="status"
+                >
+                  {statusLabelForLocale(locale, evaluation.overallStatus)}
+                </p>
+                <button
+                  type="button"
+                  onClick={returnToLiveNow}
+                  className="btn btn-sm btn-primary gap-2"
+                >
+                  <Clock className="h-4 w-4" aria-hidden />
+                  {ui.returnToNow}
+                </button>
+              </div>
             </div>
             <BodyMap systemStatuses={evaluation.systemStatuses} locale={locale} />
           </section>
@@ -651,20 +824,61 @@ export function MissionDashboard() {
             <MotionReveal>
               <h2 className="mission-section-title mb-4">{ui.missionTimeline}</h2>
               <HealthCharts
-                history={history}
+                history={dailyHistory}
                 locale={locale}
-                environment={environment}
+                cardioScale={cardioScale}
+                recoveryScale={recoveryScale}
+                radiationScale={radiationScale}
+                onCardioScaleChange={onCardioScaleChange}
+                onRecoveryScaleChange={onRecoveryScaleChange}
+                onRadiationScaleChange={onRadiationScaleChange}
+                cardioFocusDay={cardioFocusDay}
+                recoveryFocusDay={recoveryFocusDay}
+                radiationFocusDay={radiationFocusDay}
+                onCardioFocusDayChange={setCardioFocusDay}
+                onRecoveryFocusDayChange={setRecoveryFocusDay}
+                onRadiationFocusDayChange={setRadiationFocusDay}
+                missionDayOptions={missionDayOptions}
+                focusHourUtc={timelineFocusHour}
+                latestMissionDay={
+                  telemetryArchive?.daily[telemetryArchive.daily.length - 1]?.missionDay ??
+                  latest.missionDay
+                }
                 selectedRecordedAt={replayFocus?.recordedAt ?? null}
-                onSelectPoint={onChartDaySelect}
+                onSelectPoint={onChartPointSelect}
+                onLoadArchive={load30DayArchive}
+                archiveLoading={archiveLoading}
+                archiveLoaded={archiveLoaded}
+                loadArchiveDisabled={simControlsLocked}
                 animateLines={!simControlsLocked}
+                telemetryArchive={telemetryArchive}
               />
               {replayFocus ? (
                 <DayReplayDetail
                   reading={replayFocus}
                   priorHistory={historyBeforeFocus}
+                  dailyHistory={dailyHistory}
                   locale={locale}
+                  onReturnToNow={returnToLiveNow}
                 />
               ) : null}
+            </MotionReveal>
+
+            <MotionReveal>
+              <h2 className="mission-section-title mb-4">{ui.logVitals}</h2>
+              {simControlsLocked ? (
+                <p className="mission-panel p-4 text-sm text-base-content/80">
+                  {ui.vitalsReadOnlyInReplay}
+                </p>
+              ) : (
+                <VitalsInputForm
+                  environment={environment}
+                  missionDay={latest.missionDay + 1}
+                  locale={locale}
+                  pendingReactionMs={pendingReactionMs}
+                  onSubmit={appendReading}
+                />
+              )}
             </MotionReveal>
           </section>
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Camera, Flame, Zap } from "lucide-react";
 import { EXAM_THRESHOLDS } from "@/data/nasaKnowledge";
 import {
@@ -13,6 +13,17 @@ import type { MissionEnvironment, VitalReadings, VitalsFormMetric } from "@/type
 
 const STORAGE_KEY = "healthnasa_checkin_streak";
 const REACTION_KEY = "healthnasa_reaction_avg_ms";
+
+function readCheckinStreak(): number {
+  if (typeof window === "undefined") return 0;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return parseInt(raw, 10) || 0;
+  } catch {
+    /* offline / private mode */
+  }
+  return 0;
+}
 
 const STEP_METRICS: VitalsFormMetric[] = [
   "systolicBP",
@@ -67,16 +78,7 @@ export function VitalsInputForm({
   const ui = UI_STRINGS[locale];
 
   const [step, setStep] = useState(0);
-  const [streak, setStreak] = useState(0);
-
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) setStreak(parseInt(raw, 10) || 0);
-    } catch {
-      /* offline / private mode */
-    }
-  }, []);
+  const [streak, setStreak] = useState(readCheckinStreak);
   const [preview, setPreview] = useState<string | undefined>();
   const [form, setForm] = useState<Partial<VitalReadings>>({
     environment,

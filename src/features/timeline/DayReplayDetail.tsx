@@ -11,8 +11,9 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { buildIntradaySamples } from "@/data/intradaySamples";
+import { buildHourlySamples } from "@/data/intradaySamples";
 import { evaluateHealth } from "@/features/rules-engine/evaluateHealth";
+import { clinicalReadingForEvaluation } from "@/lib/clinicalReading";
 import {
   ENVIRONMENT_LABELS,
   MISSION_EVENT_LABELS,
@@ -32,20 +33,35 @@ import type { VitalReadings } from "@/types/health";
 interface DayReplayDetailProps {
   reading: VitalReadings;
   priorHistory: VitalReadings[];
+  dailyHistory: VitalReadings[];
   locale: AppLocale;
+  onReturnToNow?: () => void;
 }
 
-export function DayReplayDetail({ reading, priorHistory, locale }: DayReplayDetailProps) {
+export function DayReplayDetail({
+  reading,
+  priorHistory,
+  dailyHistory,
+  locale,
+  onReturnToNow,
+}: DayReplayDetailProps) {
   const ui = UI_STRINGS[locale];
   const envLabel = ENVIRONMENT_LABELS[locale][reading.environment];
-  const evaluation = useMemo(
-    () => evaluateHealth(reading, priorHistory, locale),
-    [reading, priorHistory, locale]
-  );
+  const evaluation = useMemo(() => {
+    const clinical = clinicalReadingForEvaluation(reading, dailyHistory);
+    return evaluateHealth(clinical, priorHistory, locale);
+  }, [reading, priorHistory, dailyHistory, locale]);
   const overallStyles = statusStyles(evaluation.overallStatus);
   const events = parseMissionEventCodes(reading.extraMetrics);
 
-  const intraday = useMemo(() => buildIntradaySamples(reading, 24), [reading]);
+  const dayAnchor = useMemo(
+    () =>
+      dailyHistory.find(
+        (h) => h.missionDay === reading.missionDay && h.extraMetrics?.intradaySlot === undefined
+      ) ?? reading,
+    [dailyHistory, reading]
+  );
+  const intraday = useMemo(() => buildHourlySamples(dayAnchor), [dayAnchor]);
   const intradayChart = useMemo(
     () =>
       intraday.map((row) => ({
@@ -71,11 +87,18 @@ export function DayReplayDetail({ reading, priorHistory, locale }: DayReplayDeta
             {ui.measuredAtEnvironment}: <span className="font-medium">{envLabel}</span>
           </p>
         </div>
-        <div
-          className={`rounded-field px-3 py-2 text-sm ${overallStyles.bg} ${overallStyles.text}`}
-          role="status"
-        >
-          {evaluation.headline} — {statusLabelForLocale(locale, evaluation.overallStatus)}
+        <div className="flex flex-col items-stretch gap-2 sm:items-end">
+          <div
+            className={`rounded-field px-3 py-2 text-sm ${overallStyles.bg} ${overallStyles.text}`}
+            role="status"
+          >
+            {evaluation.headline} — {statusLabelForLocale(locale, evaluation.overallStatus)}
+          </div>
+          {onReturnToNow ? (
+            <button type="button" className="btn btn-sm btn-primary" onClick={onReturnToNow}>
+              {ui.returnToNow}
+            </button>
+          ) : null}
         </div>
       </div>
 

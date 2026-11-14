@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { CheckSquare, Zap } from "lucide-react";
 import type { AppLocale } from "@/lib/locale";
 import { UI_STRINGS } from "@/lib/locale";
@@ -18,6 +18,42 @@ const CHECKLIST_IDS = [
 ] as const;
 
 type ChecklistId = (typeof CHECKLIST_IDS)[number];
+
+function emptyChecklist(): Record<ChecklistId, boolean> {
+  return {
+    resistive: false,
+    hydration: false,
+    sleep: false,
+    radiation: false,
+    cabin: false,
+  };
+}
+
+function readRoutineState(): {
+  checked: Record<ChecklistId, boolean>;
+  points: number;
+  reactionAvg: number | null;
+} {
+  const checked = emptyChecklist();
+  let points = 0;
+  let reactionAvg: number | null = null;
+  if (typeof window === "undefined") {
+    return { checked, points, reactionAvg };
+  }
+  try {
+    const raw = localStorage.getItem(CHECKLIST_KEY);
+    if (raw) {
+      Object.assign(checked, JSON.parse(raw) as Record<ChecklistId, boolean>);
+    }
+    const pts = localStorage.getItem(POINTS_KEY);
+    if (pts) points = parseInt(pts, 10) || 0;
+    const rx = localStorage.getItem(REACTION_KEY);
+    if (rx) reactionAvg = parseInt(rx, 10) || null;
+  } catch {
+    /* offline / private mode */
+  }
+  return { checked, points, reactionAvg };
+}
 
 interface MissionRoutinePanelProps {
   locale?: AppLocale;
@@ -38,34 +74,10 @@ export function MissionRoutinePanel({
     cabin: ui.checklistCabin,
   };
 
-  const emptyChecklist = (): Record<ChecklistId, boolean> => ({
-    resistive: false,
-    hydration: false,
-    sleep: false,
-    radiation: false,
-    cabin: false,
-  });
-
-  const [checked, setChecked] =
-    useState<Record<ChecklistId, boolean>>(emptyChecklist);
-  const [points, setPoints] = useState(0);
-  const [reactionAvg, setReactionAvg] = useState<number | null>(null);
-
-  useEffect(() => {
-    try {
-      const base = emptyChecklist();
-      const raw = localStorage.getItem(CHECKLIST_KEY);
-      if (raw) {
-        setChecked({ ...base, ...(JSON.parse(raw) as Record<ChecklistId, boolean>) });
-      }
-      const pts = localStorage.getItem(POINTS_KEY);
-      if (pts) setPoints(parseInt(pts, 10) || 0);
-      const rx = localStorage.getItem(REACTION_KEY);
-      if (rx) setReactionAvg(parseInt(rx, 10) || null);
-    } catch {
-      /* offline / private mode */
-    }
-  }, []);
+  const [routineSeed] = useState(readRoutineState);
+  const [checked, setChecked] = useState<Record<ChecklistId, boolean>>(routineSeed.checked);
+  const [points, setPoints] = useState(routineSeed.points);
+  const [reactionAvg, setReactionAvg] = useState<number | null>(routineSeed.reactionAvg);
 
   const [reactionPhase, setReactionPhase] = useState<
     "idle" | "waiting" | "go" | "done"

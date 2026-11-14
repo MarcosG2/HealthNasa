@@ -29,8 +29,21 @@ export type BodySystemStatus =
 /** Demo mission scenario toggles in the dashboard simulation row */
 export type MissionScenarioId = "solar" | "cardio" | "isolation";
 
-/** Mission timeline chart bucket for HealthCharts time-scale toggles */
+/** @deprecated Legacy single-scale toggle — panels use CardioChartScale | RecoveryChartScale | RadiationChartScale */
 export type ChartTimeGranularity = "minutes" | "hours" | "days";
+
+export type ChartPanelId = "cardio" | "recovery" | "radiation";
+
+/** Cardiovascular panel — short (5 s / 1 min) vs daily HR range (exercise vs illness) */
+export type CardioChartScale = "5sec" | "minute" | "day";
+
+/**
+ * Recovery / metabolic — daily sleep + stress (circadian drift) or hourly glucose (metabolic stress).
+ */
+export type RecoveryChartScale = "day" | "hour";
+
+/** Radiation — hourly dose rate within a day, or daily dose + mission cumulative */
+export type RadiationChartScale = "day" | "hour";
 
 export type AstronautHealthArchetype =
   | "healthy"
@@ -145,4 +158,60 @@ export interface EnvironmentMissionMeta {
   operationsContext: string;
   healthFocus: string;
   scenarioContext: string;
+}
+
+/** Single 5-second (or configured) high-resolution telemetry row in the hot layer */
+export interface TelemetryHotSample {
+  recordedAt: string;
+  missionDay: number;
+  heartRate: number;
+  systolicBP: number;
+  diastolicBP: number;
+  bloodSugar: number;
+  temperature: number;
+}
+
+/** Aggregated bucket for warm/cold chart paths (minute or hour) */
+export interface TelemetryRollupBucket {
+  bucketStart: string;
+  missionDay: number;
+  bucketKind: "minute" | "hour";
+  heartRateAvg: number;
+  heartRateMin: number;
+  heartRateMax: number;
+  systolicAvg: number;
+  sampleCount: number;
+}
+
+export interface TelemetryAnomalySpec {
+  missionDay: number;
+  utcHour: number;
+  utcMinute: number;
+  durationMinutes: number;
+  peakHeartRate: number;
+  label?: string;
+}
+
+export interface MissionTelemetryArchiveMeta {
+  version: 1;
+  missionDays: number;
+  sampleIntervalSec: number;
+  hotWindowHours: number;
+  generatedAt: string;
+  missionStartIso: string;
+  astronautId?: string;
+  environment: MissionEnvironment;
+  seed: string;
+}
+
+/** Layered mission dataset — raw hot path plus rollups for long horizons */
+export interface MissionTelemetryArchive {
+  meta: MissionTelemetryArchiveMeta;
+  daily: VitalReadings[];
+  anomalies: TelemetryAnomalySpec[];
+  hot: TelemetryHotSample[];
+  rollups: {
+    minute: TelemetryRollupBucket[];
+    hour: TelemetryRollupBucket[];
+  };
 }

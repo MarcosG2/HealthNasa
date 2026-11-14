@@ -1,5 +1,26 @@
 import type { MissionEnvironment, VitalReadings } from "@/types/health";
-import { missionLogEventsForDay } from "@/data/intradaySamples";
+import { mergeScenarioMissionEvents, missionLogEventsForDay } from "@/data/intradaySamples";
+
+const DEMO_ENVIRONMENT_BY_DAY: Partial<Record<number, MissionEnvironment>> = {
+  1: "spacecraft",
+  2: "spacecraft",
+  3: "spacecraft",
+  4: "spacecraft",
+  5: "lunar_base",
+  6: "lunar_base",
+  7: "lunar_base",
+  8: "lunar_base",
+  9: "lunar_base",
+  10: "rover",
+  11: "rover",
+  12: "lunar_base",
+  13: "lunar_base",
+  14: "station",
+};
+
+function environmentForDay(day: number, fallback: MissionEnvironment): MissionEnvironment {
+  return DEMO_ENVIRONMENT_BY_DAY[day] ?? fallback;
+}
 
 const baseDate = new Date("2026-11-01T00:00:00Z");
 
@@ -64,13 +85,20 @@ export function buildMockMissionHistory(
       glucose = 165;
     }
 
+    const dayEnv = environmentForDay(day, env);
     const envDoseBoost =
-      env === "mars_base" ? 0.12 : env === "spacecraft" ? 0.08 : env === "rover" ? 0.05 : 0;
+      dayEnv === "mars_base"
+        ? 0.12
+        : dayEnv === "spacecraft"
+          ? 0.08
+          : dayEnv === "rover"
+            ? 0.05
+            : 0;
     const radiationMsv = day >= 14 ? 0.85 + envDoseBoost : 0.35 + day * 0.03 + envDoseBoost;
 
     days.push(
       entry(day, {
-        environment: env,
+        environment: dayEnv,
         systolicBP: Math.round(systolic),
         diastolicBP: Math.round(diastolic),
         heartRate: Math.round(heartRate),
@@ -104,6 +132,7 @@ export function solarParticleScenario(
   environment: MissionEnvironment = "station"
 ): VitalReadings {
   const base = scenarioBase(environment);
+  const baseEvents = base.extraMetrics?.missionEvents;
   return {
     ...base,
     radiationMsv: 1.75,
@@ -111,7 +140,14 @@ export function solarParticleScenario(
     sleepHours: 5.2,
     moodScore: 3,
     stressLevel: 7,
-    extraMetrics: { fatigueLevel: "elevated" },
+    extraMetrics: {
+      ...base.extraMetrics,
+      fatigueLevel: "elevated",
+      missionEvents: mergeScenarioMissionEvents(
+        typeof baseEvents === "string" ? baseEvents : undefined,
+        "solar"
+      ),
+    },
   };
 }
 
@@ -120,6 +156,7 @@ export function cardioDehydrationScenario(
   environment: MissionEnvironment = "station"
 ): VitalReadings {
   const base = scenarioBase(environment);
+  const baseEvents = base.extraMetrics?.missionEvents;
   return {
     ...base,
     systolicBP: 166,
@@ -129,6 +166,13 @@ export function cardioDehydrationScenario(
     bloodSugar: 118,
     stressLevel: 6,
     radiationMsv: 0.6,
+    extraMetrics: {
+      ...base.extraMetrics,
+      missionEvents: mergeScenarioMissionEvents(
+        typeof baseEvents === "string" ? baseEvents : undefined,
+        "cardio"
+      ),
+    },
   };
 }
 
@@ -137,13 +181,21 @@ export function isolationDriftScenario(
   environment: MissionEnvironment = "station"
 ): VitalReadings {
   const base = scenarioBase(environment);
+  const baseEvents = base.extraMetrics?.missionEvents;
   return {
     ...base,
     sleepHours: 3.8,
     moodScore: 2,
     stressLevel: 8,
     heartRate: 86,
-    extraMetrics: { reactionTimeMs: 540 },
+    extraMetrics: {
+      ...base.extraMetrics,
+      reactionTimeMs: 540,
+      missionEvents: mergeScenarioMissionEvents(
+        typeof baseEvents === "string" ? baseEvents : undefined,
+        "isolation"
+      ),
+    },
   };
 }
 

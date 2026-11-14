@@ -1,8 +1,20 @@
 import { buildMockMissionHistory } from "@/data/mockMissionHistory";
-import { buildIntradaySamples } from "@/data/intradaySamples";
+import {
+  buildHourlySamples,
+  buildMinuteSamplesForHour,
+} from "@/data/intradaySamples";
 import type { AppLocale } from "@/lib/locale";
+import { dailyReadingForMissionDay } from "@/lib/clinicalReading";
 import { formatDayAxis, formatIntradayAxis } from "@/lib/missionTime";
-import type { ChartTimeGranularity, MissionEnvironment, VitalReadings } from "@/types/health";
+import {
+  CHART_MAX_POINTS,
+  selectArchiveChartReadings,
+} from "@/lib/telemetryArchive";
+import type {
+  ChartTimeGranularity,
+  MissionTelemetryArchive,
+  VitalReadings,
+} from "@/types/health";
 
 export interface ChartTimelineRow {
   axisLabel: string;
@@ -10,18 +22,33 @@ export interface ChartTimelineRow {
   recordedAt: string;
   systolicBP: number;
   heartRate: number;
+  heartRateMin?: number;
+  heartRateMax?: number;
   sleepHours: number;
   bloodSugar: number;
   moodScore: number;
+  stressLevel?: number;
   radiationMsv: number;
   radiationCumulative: number;
   reading: VitalReadings;
 }
 
-const INTRADAY_SLOTS: Record<Exclude<ChartTimeGranularity, "days">, number> = {
-  hours: 24,
-  minutes: 60,
-};
+function resolveTimelineSource(history: VitalReadings[] | undefined): VitalReadings[] {
+  const dailyOnly = (history ?? [])
+    .filter((h) => h.extraMetrics?.intradaySlot === undefined)
+    .sort((a, b) => a.missionDay - b.missionDay);
+  if (dailyOnly.length >= 10) return dailyOnly;
+  const env = dailyOnly[dailyOnly.length - 1]?.environment ?? "station";
+  const mock = buildMockMissionHistory(env);
+  const byDay = new Map<number, VitalReadings>();
+  for (const row of mock) byDay.set(row.missionDay, row);
+  for (const row of dailyOnly) byDay.set(row.missionDay, row);
+  const sorted = [...byDay.values()].sort((a, b) => a.missionDay - b.missionDay);
+  const latestDay = sorted[sorted.length - 1]?.missionDay ?? 14;
+  if (sorted.length > 14) return sorted;
+  const windowStart = Math.max(1, latestDay - 13);
+  return sorted.filter((row) => row.missionDay >= windowStart);
+}
 
 function axisLabelForGranularity(
   reading: VitalReadings,
@@ -34,12 +61,9 @@ function axisLabelForGranularity(
   if (granularity === "hours") {
     const d = new Date(reading.recordedAt);
     const hour = String(d.getUTCHours()).padStart(2, "0");
-    return locale === "es"
-      ? `D${reading.missionDay} ${hour}:00`
-      : `D${reading.missionDay} ${hour}:00`;
+    return `${hour}:00`;
   }
-  const time = formatIntradayAxis(reading.recordedAt, locale);
-  return locale === "es" ? `D${reading.missionDay} ${time}` : `D${reading.missionDay} ${time}`;
+  return formatIntradayAxis(reading.recordedAt, locale);
 }
 
 function toChartRow(
@@ -48,7 +72,10 @@ function toChartRow(
   granularity: ChartTimeGranularity,
   locale: AppLocale
 ): ChartTimelineRow {
-  const dose = reading.radiationMsv ?? 0;
+  const displayDose =
+    granularity === "days"
+      ? reading.radiationMsv ?? 0
+      : reading.radiationMsv ?? 0;
   return {
     axisLabel: axisLabelForGranularity(reading, granularity, locale),
     missionDay: reading.missionDay,
@@ -58,30 +85,81 @@ function toChartRow(
     sleepHours: reading.sleepHours,
     bloodSugar: reading.bloodSugar,
     moodScore: reading.moodScore,
-    radiationMsv: dose,
+    radiationMsv: displayDose,
     radiationCumulative: Math.round(cumulative * 100) / 100,
     reading,
   };
 }
 
-export function buildChartTimeline(
-  history: VitalReadings[],
-  environment: MissionEnvironment,
-  granularity: ChartTimeGranularity,
-  locale: AppLocale
-): { rows: ChartTimelineRow[]; source: VitalReadings[] } {
-  const filtered = history.filter((h) => h.environment === environment);
-  const source = filtered.length >= 10 ? filtered : buildMockMissionHistory(environment);
+export interface BuildChartTimelineInput {
+  history: VitalReadings[];
+  granularity: ChartTimeGranularity;
+  locale: AppLocale;
+  focusMissionDay: number | null;
+  focusHourUtc: number | null;
+  telemetryArchive?: MissionTelemetryArchive | null;
+}
 
-  const readings: VitalReadings[] =
+export function buildChartTimeline({
+  history,
+  granularity,
+  locale,
+  focusMissionDay,
+  focusHourUtc,
+  telemetryArchive = null,
+}: BuildChartTimelineInput): { rows: ChartTimelineRow[]; source: VitalReadings[] } {
+  const source =
+    telemetryArchive?.daily?.length && granularity === "days"
+      ? telemetryArchive.daily
+      : resolveTimelineSource(history);
+
+  let readings: VitalReadings[] = source;
+
+  const archived =
+    telemetryArchive &&
+    selectArchiveChartReadings(
+      telemetryArchive,
+      source,
+      granularity,
+      focusMissionDay,
+      focusHourUtc
+    );
+
+  if (archived !== null && granularity !== "days") {
+    readings = archived;
+  } else if (granularity === "hours") {
+    if (focusMissionDay === null) {
+      return { rows: [], source };
+    }
+    const daily =
+      dailyReadingForMissionDay(source, focusMissionDay) ??
+      source.find((r) => r.missionDay === focusMissionDay);
+    readings = daily ? buildHourlySamples(daily) : [];
+  } else if (granularity === "minutes") {
+    if (focusMissionDay === null || focusHourUtc === null) {
+      return { rows: [], source };
+    }
+    const daily =
+      dailyReadingForMissionDay(source, focusMissionDay) ??
+      source.find((r) => r.missionDay === focusMissionDay);
+    readings = daily ? buildMinuteSamplesForHour(daily, focusHourUtc) : [];
+  }
+
+  let cumulative =
     granularity === "days"
-      ? source
-      : source.flatMap((dayRow) =>
-          buildIntradaySamples(dayRow, INTRADAY_SLOTS[granularity])
-        );
+      ? 0
+      : source
+          .filter((r) => focusMissionDay !== null && r.missionDay < focusMissionDay)
+          .reduce((acc, r) => acc + (r.radiationMsv ?? 0), 0);
 
-  let cumulative = 0;
-  const rows = readings.map((reading) => {
+  const capped =
+    readings.length > CHART_MAX_POINTS
+      ? readings.filter(
+          (_, i) => i % Math.ceil(readings.length / CHART_MAX_POINTS) === 0
+        )
+      : readings;
+
+  const rows = capped.map((reading) => {
     cumulative += reading.radiationMsv ?? 0;
     return toChartRow(reading, cumulative, granularity, locale);
   });
