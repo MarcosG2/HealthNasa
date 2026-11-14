@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { ExternalLink } from "lucide-react";
 import type { MuscleId } from "@emmorts/body-muscles";
 import { NASA_HAZARDS_KNOWLEDGE } from "@/data/nasaKnowledge";
 import {
@@ -114,11 +113,6 @@ export function BodyMap({ systemStatuses, locale = "es" }: BodyMapProps) {
                   aria-hidden
                 />
                 {regionLabel}
-                {isSelected ? (
-                  <span className="badge badge-xs border-0 bg-base-100/20 text-[10px] uppercase">
-                    {ui.bodyRegionSelected}
-                  </span>
-                ) : null}
               </button>
             );
           })}
@@ -162,28 +156,6 @@ export function BodyMap({ systemStatuses, locale = "es" }: BodyMapProps) {
                     </span>
                     {h.hrpRisks.join(" · ")}
                   </p>
-                )}
-                {h.officialLinks && h.officialLinks.length > 0 && (
-                  <div className="mt-2">
-                    <p className="text-xs font-medium text-base-content/70">
-                      {ui.officialReferences}
-                    </p>
-                    <ul className="mt-1 space-y-1">
-                      {h.officialLinks.map((link) => (
-                        <li key={link.url}>
-                          <a
-                            href={link.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="link link-primary inline-flex items-center gap-1"
-                          >
-                            <ExternalLink className="h-3 w-3" aria-hidden />
-                            {link.label}
-                          </a>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
                 )}
               </li>
             );
