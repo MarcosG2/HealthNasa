@@ -160,9 +160,8 @@ export function MissionRoutinePanel({
         : "bg-slate-700 border-slate-600";
 
   return (
-    <div className="card card-border bg-base-200/60 p-4">
-      <h3 className="text-lg font-semibold">{ui.dailyCountermeasures}</h3>
-      <div className="mt-2 flex items-center justify-between text-sm text-base-content/80">
+    <div className="mission-panel p-4">
+      <div className="flex items-center justify-between text-sm text-base-content/80">
         <span>{ui.readinessPoints}</span>
         <span className="font-medium text-success">{points}</span>
       </div>

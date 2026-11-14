@@ -9,12 +9,12 @@
   default: true;
   prefersdark: true;
   color-scheme: dark;
-  --color-base-100: oklch(22% 0.02 264);
-  --color-base-200: oklch(28% 0.025 264);
-  --color-base-300: oklch(36% 0.03 264);
-  --color-base-content: oklch(96% 0.01 264);
-  --color-primary: oklch(74% 0.14 230);
-  --color-primary-content: oklch(20% 0.04 230);
+  --color-base-100: oklch(16% 0.022 255);
+  --color-base-200: oklch(21% 0.028 255);
+  --color-base-300: oklch(30% 0.032 255);
+  --color-base-content: oklch(94% 0.014 255);
+  --color-primary: oklch(78% 0.155 215);
+  --color-primary-content: oklch(16% 0.04 215);
   --color-secondary: oklch(65% 0.08 264);
   --color-secondary-content: oklch(98% 0.01 264);
   --color-accent: oklch(72% 0.17 165);
@@ -60,6 +60,21 @@
 
   body {
     @apply min-h-full bg-base-100 font-sans text-base text-base-content antialiased;
+    background-image: radial-gradient(
+      ellipse 120% 80% at 50% -20%,
+      oklch(32% 0.06 215 / 0.22),
+      transparent 55%
+    );
+  }
+
+  ::selection {
+    background: oklch(78% 0.155 215 / 0.35);
+    color: oklch(98% 0.01 255);
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: oklch(36% 0.04 255) oklch(18% 0.02 255);
   }
 
   :where(
@@ -104,4 +119,41 @@
 
 @utility skip-link {
   @apply sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-box focus:bg-primary focus:px-4 focus:py-2 focus:text-primary-content focus:shadow-lg;
+}
+
+@utility mission-shell {
+  @apply relative min-h-screen text-base-content;
+}
+
+@utility mission-command {
+  @apply border-b border-base-300/80 bg-base-200/90 backdrop-blur-md;
+}
+
+@utility mission-panel {
+  @apply rounded-box border border-base-300/70 bg-base-200/55;
+}
+
+@utility mission-panel-head {
+  @apply border-b border-base-300/60 px-4 py-3 text-sm font-semibold tracking-tight text-base-content;
+}
+
+@utility mission-readout {
+  @apply font-mono text-sm tabular-nums tracking-tight text-primary;
+}
+
+@utility mission-section-title {
+  @apply text-base font-semibold tracking-tight text-base-content sm:text-lg;
+}
+
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
 }

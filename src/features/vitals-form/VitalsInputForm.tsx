@@ -145,7 +145,7 @@ export function VitalsInputForm({
   const progressPct = Math.round(((step + 1) / STEP_METRICS.length) * 100);
 
   return (
-    <div className="card card-border bg-base-200/60 p-4">
+    <div className="mission-panel p-4">
       <div className="mb-4 flex items-center justify-between gap-2">
         <h3 className="text-lg font-semibold">{ui.dailyCheckIn}</h3>
         <div
