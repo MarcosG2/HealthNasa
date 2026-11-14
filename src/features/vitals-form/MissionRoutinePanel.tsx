@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { CheckSquare, Zap } from "lucide-react";
 import type { AppLocale } from "@/lib/locale";
 import { UI_STRINGS } from "@/lib/locale";
@@ -38,45 +38,34 @@ export function MissionRoutinePanel({
     cabin: ui.checklistCabin,
   };
 
-  const [checked, setChecked] = useState<Record<ChecklistId, boolean>>(() => {
-    const base: Record<ChecklistId, boolean> = {
-      resistive: false,
-      hydration: false,
-      sleep: false,
-      radiation: false,
-      cabin: false,
-    };
-    if (typeof window === "undefined") return base;
+  const emptyChecklist = (): Record<ChecklistId, boolean> => ({
+    resistive: false,
+    hydration: false,
+    sleep: false,
+    radiation: false,
+    cabin: false,
+  });
+
+  const [checked, setChecked] =
+    useState<Record<ChecklistId, boolean>>(emptyChecklist);
+  const [points, setPoints] = useState(0);
+  const [reactionAvg, setReactionAvg] = useState<number | null>(null);
+
+  useEffect(() => {
     try {
+      const base = emptyChecklist();
       const raw = localStorage.getItem(CHECKLIST_KEY);
       if (raw) {
-        return { ...base, ...(JSON.parse(raw) as Record<ChecklistId, boolean>) };
+        setChecked({ ...base, ...(JSON.parse(raw) as Record<ChecklistId, boolean>) });
       }
-    } catch {
-      /* ignore */
-    }
-    return base;
-  });
-  const [points, setPoints] = useState(() => {
-    if (typeof window === "undefined") return 0;
-    try {
       const pts = localStorage.getItem(POINTS_KEY);
-      if (pts) return parseInt(pts, 10) || 0;
-    } catch {
-      /* ignore */
-    }
-    return 0;
-  });
-  const [reactionAvg, setReactionAvg] = useState<number | null>(() => {
-    if (typeof window === "undefined") return null;
-    try {
+      if (pts) setPoints(parseInt(pts, 10) || 0);
       const rx = localStorage.getItem(REACTION_KEY);
-      if (rx) return parseInt(rx, 10) || null;
+      if (rx) setReactionAvg(parseInt(rx, 10) || null);
     } catch {
-      /* ignore */
+      /* offline / private mode */
     }
-    return null;
-  });
+  }, []);
 
   const [reactionPhase, setReactionPhase] = useState<
     "idle" | "waiting" | "go" | "done"
