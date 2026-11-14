@@ -43,12 +43,13 @@ export const NASA_HAZARDS_KNOWLEDGE: HazardKnowledgeBlock[] = [
     shortDescription:
       "Small crews far from home can affect sleep, mood, and team coordination.",
     whyMonitorInSpace:
-      "Mood and sleep are early signs of stress. Catching trends early helps the crew support each other.",
+      "Mood, sleep, and neuro-ocular signs (SANS) are early stress indicators. Catching trends early helps the crew support each other.",
     whatCanBeMeasured: [
       "Mood score (1–5)",
       "Stress level (1–10)",
       "Sleep hours",
       "Heart rate at rest",
+      "Vision / neuro-ocular self-checks (SANS)",
     ],
     preventiveActions: [
       "Keep a daily check-in routine",
@@ -131,7 +132,7 @@ export const NASA_HAZARDS_KNOWLEDGE: HazardKnowledgeBlock[] = [
     hazard: "closed_environment",
     title: "Closed environment",
     shortDescription:
-      "Recycled air and water, noise, and CO₂ can affect sleep and metabolism.",
+      "Recycled air and water, elevated CO₂, and noise can affect sleep, metabolism, and mild hypoxia symptoms.",
     whyMonitorInSpace:
       "Temperature, hydration, and blood sugar help detect dehydration or poor recovery in the cabin.",
     whatCanBeMeasured: [

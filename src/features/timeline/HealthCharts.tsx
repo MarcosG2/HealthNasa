@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactElement } from "react";
+import { useMemo, type ReactElement } from "react";
 import {
   Area,
   AreaChart,
@@ -17,52 +17,30 @@ import {
 import { RADIATION_CHART_CAUTION_MSV } from "@/data/nasaKnowledge";
 import { buildMockMissionHistory } from "@/data/mockMissionHistory";
 import {
-  ENVIRONMENT_LABELS,
   ENVIRONMENT_MISSION_META,
   type AppLocale,
   UI_STRINGS,
 } from "@/lib/locale";
 import type { MissionEnvironment, VitalReadings } from "@/types/health";
 
-const ENVIRONMENT_IDS: MissionEnvironment[] = [
-  "station",
-  "spacecraft",
-  "rover",
-  "lunar_base",
-  "mars_base",
-];
-
 interface HealthChartsProps {
   history: VitalReadings[];
   locale?: AppLocale;
-  environment?: MissionEnvironment;
-  onEnvironmentChange?: (env: MissionEnvironment) => void;
+  environment: MissionEnvironment;
 }
 
 export function HealthCharts({
   history,
-  locale = "es",
-  environment: environmentProp,
-  onEnvironmentChange,
+  locale = "en",
+  environment,
 }: HealthChartsProps) {
   const ui = UI_STRINGS[locale];
-  const envLabels = ENVIRONMENT_LABELS[locale];
-
-  const [environment, setEnvironment] = useState<MissionEnvironment>(
-    environmentProp ?? history[0]?.environment ?? "station"
-  );
   const envMeta = ENVIRONMENT_MISSION_META[locale][environment];
-
-  useEffect(() => {
-    if (environmentProp && environmentProp !== environment) {
-      setEnvironment(environmentProp);
-    }
-  }, [environmentProp, environment]);
 
   const chartData = useMemo(() => {
     const filtered = history.filter((h) => h.environment === environment);
     const source =
-      filtered.length > 0 ? filtered : buildMockMissionHistory(environment);
+      filtered.length >= 10 ? filtered : buildMockMissionHistory(environment);
     return source.map((h, index) => {
       const dose = h.radiationMsv ?? 0;
       const cumulative = source
@@ -82,43 +60,8 @@ export function HealthCharts({
     });
   }, [history, environment]);
 
-  function handleEnvChange(env: MissionEnvironment) {
-    setEnvironment(env);
-    onEnvironmentChange?.(env);
-  }
-
   return (
     <div className="space-y-6">
-      <div
-        role="tablist"
-        aria-label={ui.missionEnvironment}
-        className="flex flex-wrap items-center gap-2"
-      >
-        <span className="text-sm text-base-content/80">{ui.missionEnvironment}:</span>
-        {ENVIRONMENT_IDS.map((id) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            id={`env-tab-${id}`}
-            aria-selected={environment === id}
-            aria-controls={`env-panel-${id}`}
-            onClick={() => handleEnvChange(id)}
-            className={`btn btn-xs sm:btn-sm ${
-              environment === id ? "btn-primary" : "btn-outline"
-            }`}
-          >
-            {envLabels[id]}
-          </button>
-        ))}
-      </div>
-
-      <div
-        id={`env-panel-${environment}`}
-        role="tabpanel"
-        aria-labelledby={`env-tab-${environment}`}
-        className="space-y-6"
-      >
       <div className="mission-panel space-y-2 p-4 text-sm text-base-content/85">
         <p className="mission-section-title text-base">{ui.environmentBrief}</p>
         <p>
@@ -252,7 +195,6 @@ export function HealthCharts({
             />
           </LineChart>
         </ChartContainer>
-      </div>
       </div>
     </div>
   );

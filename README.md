@@ -1,36 +1,59 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Mission Health Control
 
-## Getting Started
+Offline-first astronaut health monitoring demo for **NASA Space Apps Challenge**. The browser runs deterministic evaluation inspired by NASA Human Research Program (HRP) thresholds—no blocking API required for core UX.
 
-First, run the development server:
+## Features
+
+- **Mission dashboard** — crew profile, communication latency, and environment-specific hazards
+- **Body map** — status by body system with linked NASA hazard education
+- **Mission timeline charts** — 14-day cardiovascular, recovery, and radiation trends
+- **Vitals check-in** — guided daily log with optional camera/ultrasound attachment
+- **Rules engine** — `evaluateHealth()` with escalation: self-care → crew → ground flight surgeon
+- **Mission scenarios** — solar particles, cardio/dehydration, isolation (stackable simulations)
+
+## Stack
+
+Next.js (App Router), TypeScript, Tailwind CSS, daisyUI, `lucide-react`, Recharts.
+
+## Getting started
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run dev      # local development
+npm run build    # production build (run before deploy)
+npm run lint     # ESLint
+```
 
-## Learn More
+## Architecture
 
-To learn more about Next.js, take a look at the following resources:
+| Area | Path |
+|------|------|
+| Dashboard shell | `src/features/dashboard/` |
+| Body map | `src/features/body-map/` |
+| Charts | `src/features/timeline/` |
+| Vitals form | `src/features/vitals-form/` |
+| Offline evaluator | `src/features/rules-engine/evaluateHealth.ts` |
+| Shared health types | `src/types/health.ts` |
+| HRP copy & thresholds | `src/data/nasaKnowledge.ts` |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Optional API routes under `src/app/api/` simulate ground sync; clinical evaluation remains client-side.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Official references
 
-## Deploy on Vercel
+- [NASA HRP — Spaceflight Hazards](https://www.nasa.gov/hrp/hazards/)
+- [NASA HRP — Human Health Risks](https://www.nasa.gov/hrp/risks/)
+- [NASA HRP — Ongoing Research](https://www.nasa.gov/hrp/ongoing-hrp-research/)
+- [CSA — Monitoring radiation & astronaut health](https://www.asc-csa.gc.ca/eng/news/articles/2026/2026-02-26-monitoring-radiation-astronaut-health.asp)
+- [CSA — Science on the ISS](https://www.asc-csa.gc.ca/eng/iss/science/why-do-we-conduct-science-experiments-in-space.asp)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## License
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Built for NASA Space Apps 2026. See repository license if present.

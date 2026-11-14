@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Camera, Flame } from "lucide-react";
+import { Camera, Flame, Zap } from "lucide-react";
+import { EXAM_THRESHOLDS } from "@/data/nasaKnowledge";
 import {
   MEASUREMENT_GUIDE_LOCALE,
   type AppLocale,
@@ -25,6 +26,29 @@ const STEP_METRICS: VitalsFormMetric[] = [
   "stressLevel",
 ];
 
+const NORMAL_DEMO_VALUES: Pick<
+  VitalReadings,
+  | "systolicBP"
+  | "diastolicBP"
+  | "heartRate"
+  | "bloodSugar"
+  | "temperature"
+  | "sleepHours"
+  | "moodScore"
+  | "radiationMsv"
+  | "stressLevel"
+> = {
+  systolicBP: 118,
+  diastolicBP: 76,
+  heartRate: 72,
+  bloodSugar: 98,
+  temperature: 36.7,
+  sleepHours: 7.2,
+  moodScore: 4,
+  radiationMsv: 0.5,
+  stressLevel: 3,
+};
+
 interface VitalsInputFormProps {
   environment: MissionEnvironment;
   missionDay: number;
@@ -36,7 +60,7 @@ interface VitalsInputFormProps {
 export function VitalsInputForm({
   environment,
   missionDay,
-  locale = "es",
+  locale = "en",
   onSubmit,
   pendingReactionMs,
 }: VitalsInputFormProps) {
@@ -57,15 +81,18 @@ export function VitalsInputForm({
   const [form, setForm] = useState<Partial<VitalReadings>>({
     environment,
     missionDay,
-    moodScore: 4,
-    stressLevel: 4,
-    radiationMsv: 0.5,
+    ...NORMAL_DEMO_VALUES,
   });
 
   const currentMetric = STEP_METRICS[step];
   const isMoodStep = currentMetric === "moodScore";
   const vitalsKey = currentMetric as keyof typeof ui.vitals;
   const currentLabel = ui.vitals[vitalsKey] ?? currentMetric;
+
+  const threshold = useMemo(
+    () => EXAM_THRESHOLDS.find((t) => t.metric === currentMetric),
+    [currentMetric]
+  );
 
   const guide = useMemo(() => {
     if (!currentMetric) return null;
@@ -95,6 +122,16 @@ export function VitalsInputForm({
     } catch {
       /* ignore */
     }
+  }
+
+  function quickFillNormal() {
+    setForm((f) => ({
+      ...f,
+      environment,
+      missionDay,
+      ...NORMAL_DEMO_VALUES,
+    }));
+    setStep(STEP_METRICS.length - 1);
   }
 
   function submitAll() {
@@ -144,21 +181,44 @@ export function VitalsInputForm({
   const stressOutputId = "stress-level-output";
   const progressPct = Math.round(((step + 1) / STEP_METRICS.length) * 100);
 
+  const referenceHint =
+    threshold &&
+    !isMoodStep &&
+    currentMetric !== "stressLevel" &&
+    threshold.unit
+      ? `${ui.referenceRange}: ${threshold.normal.min ?? "—"}–${
+          threshold.normal.max ?? "—"
+        } ${threshold.unit}`
+      : null;
+
   return (
     <div className="mission-panel p-4">
-      <div className="mb-4 flex items-center justify-between gap-2">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-lg font-semibold">{ui.dailyCheckIn}</h3>
-        <div
-          className={`badge gap-2 ${streakStyles.bg} ${streakStyles.text}`}
-          aria-label={streakText}
-        >
-          <Flame className="h-4 w-4" aria-hidden />
-          {streakText}
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={quickFillNormal}
+            className="btn btn-sm btn-outline gap-2"
+          >
+            <Zap className="h-4 w-4" aria-hidden />
+            {ui.quickFillNormal}
+          </button>
+          <div
+            className={`badge gap-2 ${streakStyles.bg} ${streakStyles.text}`}
+            aria-label={streakText}
+          >
+            <Flame className="h-4 w-4" aria-hidden />
+            {streakText}
+          </div>
         </div>
       </div>
 
       <label htmlFor={fieldId} className="mb-2 block text-sm text-base-content/80">
         {ui.stepOf} {step + 1} {ui.of} {STEP_METRICS.length}: {currentLabel}
+        {threshold?.unit && !isMoodStep && currentMetric !== "stressLevel" ? (
+          <span className="ml-1 text-base-content/60">({threshold.unit})</span>
+        ) : null}
       </label>
       <progress
         className="progress progress-primary mb-4 w-full"
@@ -222,25 +282,13 @@ export function VitalsInputForm({
             </p>
           </div>
         ) : (
-          <input
-            id={fieldId}
-            type="number"
-            inputMode="decimal"
-            aria-required="true"
-            step={
-              currentMetric === "temperature" ||
-              currentMetric === "sleepHours" ||
-              currentMetric === "radiationMsv"
-                ? 0.1
-                : 1
-            }
-            className="input input-bordered w-full"
-            value={
-              currentMetric === "radiationMsv"
-                ? (form.radiationMsv ?? "")
-                : ((form[currentMetric as keyof VitalReadings] as number) ?? "")
-            }
-            onChange={(e) => updateField(currentMetric, Number(e.target.value))}
+          <NumericVitalInput
+            fieldId={fieldId}
+            currentMetric={currentMetric}
+            form={form}
+            referenceHint={referenceHint}
+            thresholdUnit={threshold?.unit}
+            onChange={updateField}
           />
         )}
       </fieldset>
@@ -286,6 +334,58 @@ export function VitalsInputForm({
           </button>
         )}
       </div>
+    </div>
+  );
+}
+
+function NumericVitalInput({
+  fieldId,
+  currentMetric,
+  form,
+  referenceHint,
+  thresholdUnit,
+  onChange,
+}: {
+  fieldId: string;
+  currentMetric: VitalsFormMetric;
+  form: Partial<VitalReadings>;
+  referenceHint: string | null;
+  thresholdUnit?: string;
+  onChange: (key: string, value: number) => void;
+}) {
+  const numericValue =
+    currentMetric === "radiationMsv"
+      ? (form.radiationMsv ?? "")
+      : ((form[currentMetric as keyof VitalReadings] as number | undefined) ?? "");
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2">
+        <input
+          id={fieldId}
+          type="number"
+          inputMode="decimal"
+          aria-required="true"
+          step={
+            currentMetric === "temperature" ||
+            currentMetric === "sleepHours" ||
+            currentMetric === "radiationMsv"
+              ? 0.1
+              : 1
+          }
+          className="input input-bordered w-full flex-1"
+          value={numericValue}
+          onChange={(e) => onChange(currentMetric, Number(e.target.value))}
+        />
+        {thresholdUnit ? (
+          <span className="shrink-0 text-sm font-medium text-base-content/70" aria-hidden>
+            {thresholdUnit}
+          </span>
+        ) : null}
+      </div>
+      {referenceHint ? (
+        <p className="text-xs text-base-content/65">{referenceHint}</p>
+      ) : null}
     </div>
   );
 }

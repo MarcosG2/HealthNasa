@@ -1,15 +1,29 @@
 import { EXAM_THRESHOLDS, NASA_HAZARDS_KNOWLEDGE } from "@/data/nasaKnowledge";
-import { EVALUATOR_COPY, type AppLocale } from "@/lib/locale";
+import { EVALUATOR_COPY, ENVIRONMENT_MISSION_META, type AppLocale } from "@/lib/locale";
 import type {
   ActionableGuidance,
   BodySystemStatus,
   EscalationLevel,
   HealthEvaluation,
   HealthStatus,
+  MissionEnvironment,
   SpaceflightHazard,
   SystemStatusEntry,
   VitalReadings,
 } from "@/types/health";
+
+function radiationStatusForEnvironment(
+  dose: number,
+  environment: MissionEnvironment
+): HealthStatus {
+  const deepSpace =
+    environment === "spacecraft" || environment === "mars_base";
+  const warningAt = deepSpace ? 0.85 : 1.0;
+  const criticalAt = deepSpace ? 1.2 : 1.5;
+  if (dose > criticalAt) return "critical";
+  if (dose > warningAt) return "warning";
+  return "normal";
+}
 
 function scoreMetric(
   value: number,
@@ -89,9 +103,11 @@ function reactionTimeMs(current: VitalReadings): number | undefined {
 export function evaluateHealth(
   current: VitalReadings,
   recentHistory: VitalReadings[] = [],
-  locale: AppLocale = "es"
+  locale: AppLocale = "en"
 ): HealthEvaluation {
   const copy = EVALUATOR_COPY[locale];
+  const environment = current.environment;
+  const envMeta = ENVIRONMENT_MISSION_META[locale][environment];
   const history = [...recentHistory, current].sort(
     (a, b) => a.missionDay - b.missionDay
   );
@@ -104,10 +120,7 @@ export function evaluateHealth(
   }
 
   if (current.radiationMsv !== undefined) {
-    const dose = current.radiationMsv;
-    let st: HealthStatus = "normal";
-    if (dose > 1.5) st = "critical";
-    else if (dose > 1.0) st = "warning";
+    const st = radiationStatusForEnvironment(current.radiationMsv, environment);
     metricStatuses.radiationMsv = st;
     metricStatuses.radiation = st;
   }
@@ -190,6 +203,12 @@ export function evaluateHealth(
   let escalationLevel: EscalationLevel = "self_care";
   if (overallStatus === "warning") escalationLevel = "crew_attention";
   if (overallStatus === "critical") escalationLevel = "ground_flight_surgeon";
+  if (
+    (environment === "spacecraft" || environment === "mars_base") &&
+    metricStatuses.radiation === "warning"
+  ) {
+    escalationLevel = worstEscalation(escalationLevel, "crew_attention");
+  }
   if (
     current.systolicBP >= 160 ||
     current.heartRate >= 120 ||
@@ -279,6 +298,68 @@ export function evaluateHealth(
         new Set(["distance"]),
         copy.guidance.default.actions,
         copy.guidance.default.why
+      )
+    );
+  }
+
+  if (environment === "spacecraft" || environment === "mars_base") {
+    guidance.push(
+      buildGuidance(
+        new Set(["distance", "radiation"]),
+        locale === "es"
+          ? [
+              "Actuar de forma autónoma: el consultor en Tierra recibe datos con retraso (" +
+                envMeta.latencyLabel +
+                ").",
+              "Documentar síntomas neuro-ocular (SANS) y escalar localmente si la visión cambia.",
+            ]
+          : [
+              "Act autonomously: ground consult is delayed (" + envMeta.latencyLabel + ").",
+              "Log neuro-ocular SANS symptoms and escalate locally if vision shifts.",
+            ],
+        locale === "es"
+          ? "En tránsito profundo o en Marte la señal tarda minutos; las decisiones urgentes deben seguir reglas HRP a bordo."
+          : "Deep transit or Mars link delay is measured in minutes; urgent calls follow onboard HRP rules.",
+      )
+    );
+  }
+
+  if (environment === "rover" || environment === "lunar_base") {
+    guidance.push(
+      buildGuidance(
+        new Set(["gravity", "closed_environment"]),
+        locale === "es"
+          ? [
+              "Chequeo post-EVA: hidratación, irritación por polvo lunar y estrés térmico del traje.",
+              "Registrar presión arterial y FC 30 min tras reingreso al hábitat.",
+            ]
+          : [
+              "Post-EVA check: hydration, lunar dust irritation, and suit thermal stress.",
+              "Re-check blood pressure and heart rate 30 min after re-entry.",
+            ],
+        locale === "es"
+          ? "En superficie, el polvo y la gravedad parcial amplifican deshidratación y fatiga tras cada salida."
+          : "On the surface, dust and partial gravity amplify dehydration and fatigue after each EVA.",
+      )
+    );
+  }
+
+  if (environment === "station") {
+    guidance.push(
+      buildGuidance(
+        new Set(["closed_environment", "gravity"]),
+        locale === "es"
+          ? [
+              "Monitorizar CO₂ de cabina y síntomas de hipoxia leve (cefalea, somnolencia).",
+              "Anotar cambios de visión asociados a SANS y fluidos en microgravedad.",
+            ]
+          : [
+              "Track cabin CO₂ and mild hypoxia signs (headache, drowsiness).",
+              "Log vision shifts linked to SANS and fluid redistribution in microgravity.",
+            ],
+        locale === "es"
+          ? "La estación combina ambiente cerrado y microgravedad: CO₂ y SANS son riesgos HRP frecuentes."
+          : "The station mixes closed ecology and microgravity; CO₂ and SANS are common HRP risks.",
       )
     );
   }

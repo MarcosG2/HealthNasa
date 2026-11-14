@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { ASTRONAUT_ROSTER, archetypeLabel } from "@/data/astronautRoster";
 import {
   AlertTriangle,
@@ -61,15 +68,23 @@ const SCENARIO_LABEL: Record<
 };
 
 function loadLocale(): AppLocale {
-  if (typeof window === "undefined") return "es";
+  if (typeof window === "undefined") return "en";
   try {
     const raw = localStorage.getItem(LOCALE_STORAGE_KEY);
     if (raw === "en" || raw === "es") return raw;
   } catch {
     /* ignore */
   }
-  return "es";
+  return "en";
 }
+
+const ENVIRONMENT_IDS: MissionEnvironment[] = [
+  "station",
+  "spacecraft",
+  "rover",
+  "lunar_base",
+  "mars_base",
+];
 
 function loadLogs(): VitalReadings[] {
   if (typeof window === "undefined") return MOCK_MISSION_HISTORY;
@@ -130,6 +145,18 @@ function saveAstronautId(id: string) {
   }
 }
 
+function findLastVisualAttachment(
+  logs: VitalReadings[]
+): { url: string; missionDay: number } | null {
+  for (let i = logs.length - 1; i >= 0; i -= 1) {
+    const url = logs[i].imageNoteOrDataUrl;
+    if (url?.startsWith("data:image")) {
+      return { url, missionDay: logs[i].missionDay };
+    }
+  }
+  return null;
+}
+
 function applyScenarioOverlay(
   baseline: VitalReadings[],
   activeScenarios: MissionScenarioId[],
@@ -146,11 +173,12 @@ export function MissionDashboard() {
     useState<VitalReadings[]>(MOCK_MISSION_HISTORY);
   const [activeScenarios, setActiveScenarios] = useState<MissionScenarioId[]>([]);
   const [environment, setEnvironment] = useState<MissionEnvironment>("station");
-  const [locale, setLocale] = useState<AppLocale>("es");
+  const [locale, setLocale] = useState<AppLocale>("en");
   const [pendingReactionMs, setPendingReactionMs] = useState<number | undefined>();
   const [mockFeedLabel, setMockFeedLabel] = useState<string | null>(null);
   const [selectedAstronautId, setSelectedAstronautId] = useState<string>("eva-chen");
   const [roster, setRoster] = useState<MockAstronautProfile[]>(ASTRONAUT_ROSTER);
+  const baselineLoadSeq = useRef(0);
 
   useEffect(() => {
     // Post-mount hydration: SSR uses MOCK_MISSION_HISTORY; client restores saved logs.
@@ -231,19 +259,27 @@ export function MissionDashboard() {
     });
   }, []);
 
-  async function restoreBaselineFromFeed(astronautId = selectedAstronautId) {
-    const feed = await fetchMissionFeed(environment, 14, astronautId);
+  async function restoreBaselineFromFeed(
+    astronautId = selectedAstronautId,
+    env: MissionEnvironment = environment
+  ) {
+    const seq = ++baselineLoadSeq.current;
+    const feed = await fetchMissionFeed(env, 14, astronautId);
+    if (seq !== baselineLoadSeq.current) return;
+
     if (feed?.telemetry?.length) {
-      setBaselineHistory(feed.telemetry);
-      setEnvironment(feed.environment);
-      saveLogs(feed.telemetry);
+      const telemetry = feed.telemetry.map((row) => ({ ...row, environment: env }));
+      setBaselineHistory(telemetry);
+      setEnvironment(env);
+      saveLogs(telemetry);
       setMockFeedLabel(
         `${feed.crew.callSign} · ${feed.crew.agency} · ${feed.source}`
       );
       return;
     }
-    const baseline = buildMockMissionHistory(environment);
+    const baseline = buildMockMissionHistory(env);
     setBaselineHistory(baseline);
+    setEnvironment(env);
     saveLogs(baseline);
   }
 
@@ -274,6 +310,14 @@ export function MissionDashboard() {
   function toggleLocale() {
     setLocale((l) => (l === "es" ? "en" : "es"));
   }
+
+  function onSelectEnvironment(env: MissionEnvironment) {
+    if (env === environment) return;
+    setEnvironment(env);
+    void restoreBaselineFromFeed(selectedAstronautId, env);
+  }
+
+  const lastVisualAttachment = findLastVisualAttachment(history);
 
   const nextDay = (latest?.missionDay ?? 14) + 1;
   const envLabel = ENVIRONMENT_LABELS[locale][environment];
@@ -410,25 +454,53 @@ export function MissionDashboard() {
             </p>
             <p className="mt-1 text-xs text-base-content/65">{envMeta.scenarioContext}</p>
 
-            <label className="mt-4 block max-w-xl">
-              <span className="text-xs font-semibold uppercase tracking-wide text-base-content/65">
-                {ui.crewRoster}
-              </span>
-              <select
-                className="select select-bordered select-sm mt-1 w-full"
-                value={selectedAstronautId}
-                onChange={(e) => void onSelectAstronaut(e.target.value)}
-                aria-label={ui.selectAstronaut}
-              >
-                {roster.map((member) => (
-                  <option key={member.id} value={member.id}>
-                    {member.callSign} — {member.fullName} (
-                    {archetypeLabel(member.archetype, locale)}) ·{" "}
-                    {ENVIRONMENT_LABELS[locale][member.homeEnvironment]}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <div className="mt-4 grid gap-4 lg:grid-cols-2">
+              <label className="block max-w-xl">
+                <span className="text-xs font-semibold uppercase tracking-wide text-base-content/65">
+                  {ui.crewRoster}
+                </span>
+                <select
+                  className="select select-bordered select-sm mt-1 w-full"
+                  value={selectedAstronautId}
+                  onChange={(e) => void onSelectAstronaut(e.target.value)}
+                  aria-label={ui.selectAstronaut}
+                >
+                  {roster.map((member) => (
+                    <option key={member.id} value={member.id}>
+                      {member.callSign} — {member.fullName} (
+                      {archetypeLabel(member.archetype, locale)}) ·{" "}
+                      {ENVIRONMENT_LABELS[locale][member.homeEnvironment]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <div>
+                <span className="text-xs font-semibold uppercase tracking-wide text-base-content/65">
+                  {ui.missionEnvironment}
+                </span>
+                <div
+                  className="mt-1 flex flex-wrap gap-2"
+                  role="tablist"
+                  aria-label={ui.missionEnvironment}
+                >
+                  {ENVIRONMENT_IDS.map((id) => (
+                    <button
+                      key={id}
+                      type="button"
+                      role="tab"
+                      aria-selected={environment === id}
+                      onClick={() => void onSelectEnvironment(id)}
+                      className={`btn btn-xs sm:btn-sm ${
+                        environment === id ? "btn-primary" : "btn-outline"
+                      }`}
+                    >
+                      {ENVIRONMENT_LABELS[locale][id]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
 
             {mockFeedLabel ? (
               <p className="mt-2 text-xs text-base-content/70">
@@ -498,12 +570,7 @@ export function MissionDashboard() {
 
             <MotionReveal>
               <h2 className="mission-section-title mb-4">{ui.missionTimeline}</h2>
-              <HealthCharts
-                history={history}
-                locale={locale}
-                environment={environment}
-                onEnvironmentChange={(env) => setEnvironment(env)}
-              />
+              <HealthCharts history={history} locale={locale} environment={environment} />
             </MotionReveal>
 
             <MotionReveal>
@@ -543,6 +610,30 @@ export function MissionDashboard() {
             </MotionReveal>
 
             <MotionReveal>
+              <h2 className="mission-section-title mb-4">{ui.lastVisualInspection}</h2>
+              <div className="mission-panel space-y-3 p-4 text-sm text-base-content/85">
+                {lastVisualAttachment ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={lastVisualAttachment.url}
+                    alt={ui.uploadPreview}
+                    className="max-h-48 w-full rounded-lg object-contain bg-base-300/40"
+                  />
+                ) : (
+                  <p className="text-base-content/70">{ui.noVisualAttachment}</p>
+                )}
+                <p className="text-xs text-base-content/65">
+                  {ui.groundSyncSimulated.replace("{latency}", envMeta.latencyLabel)}
+                </p>
+                {lastVisualAttachment ? (
+                  <p className="mission-readout text-xs text-primary">
+                    {ui.missionDay} {lastVisualAttachment.missionDay}
+                  </p>
+                ) : null}
+              </div>
+            </MotionReveal>
+
+            <MotionReveal>
               <h2 className="mission-section-title mb-4">{ui.dailyCountermeasures}</h2>
               <MissionRoutinePanel
                 locale={locale}
@@ -560,9 +651,52 @@ export function MissionDashboard() {
           </aside>
         </div>
       </main>
+
+      <footer className="border-t border-base-300/60 bg-base-200/50">
+        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+          <p className="text-sm font-medium text-base-content">{ui.officialReferences}</p>
+          <ul className="mt-3 flex flex-col gap-2 text-sm sm:flex-row sm:flex-wrap sm:gap-x-6 sm:gap-y-2">
+            {OFFICIAL_FOOTER_LINKS.map((link) => (
+              <li key={link.url}>
+                <a
+                  href={link.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="link link-primary"
+                >
+                  {link.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </footer>
     </div>
   );
 }
+
+const OFFICIAL_FOOTER_LINKS = [
+  {
+    label: "NASA HRP — Spaceflight Hazards",
+    url: "https://www.nasa.gov/hrp/hazards/",
+  },
+  {
+    label: "NASA HRP — Human Health Risks",
+    url: "https://www.nasa.gov/hrp/risks/",
+  },
+  {
+    label: "NASA HRP — Ongoing Research",
+    url: "https://www.nasa.gov/hrp/ongoing-hrp-research/",
+  },
+  {
+    label: "CSA — Monitoring radiation & astronaut health",
+    url: "https://www.asc-csa.gc.ca/eng/news/articles/2026/2026-02-26-monitoring-radiation-astronaut-health.asp",
+  },
+  {
+    label: "CSA — Science on the ISS",
+    url: "https://www.asc-csa.gc.ca/eng/iss/science/why-do-we-conduct-science-experiments-in-space.asp",
+  },
+] as const;
 
 function TelemetryField({
   icon: Icon,

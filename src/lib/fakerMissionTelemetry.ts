@@ -65,8 +65,9 @@ export function buildFakerMissionFeed(
   astronautId?: string
 ): FakerMissionFeed {
   const rosterEntry = astronautId ? getAstronautById(astronautId) : undefined;
-  const env = rosterEntry?.homeEnvironment ?? environment;
-  const seedValue = seed ?? `${astronautId ?? env}-${days}`;
+  /** User-selected mission context; do not override with crew home habitat. */
+  const env = environment;
+  const seedValue = seed ?? `${astronautId ?? "crew"}-${env}-${days}`;
   faker.seed(seedFromString(seedValue));
 
   let baseline = buildMockMissionHistory(env).slice(0, days).map((row) => ({

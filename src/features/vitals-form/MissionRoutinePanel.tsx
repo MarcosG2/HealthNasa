@@ -25,7 +25,7 @@ interface MissionRoutinePanelProps {
 }
 
 export function MissionRoutinePanel({
-  locale = "es",
+  locale = "en",
   onReactionRecorded,
 }: MissionRoutinePanelProps) {
   const ui = UI_STRINGS[locale];
