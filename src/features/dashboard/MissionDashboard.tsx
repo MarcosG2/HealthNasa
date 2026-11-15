@@ -46,6 +46,10 @@ import {
 } from "@/lib/locale";
 import { statusStyles } from "@/lib/statusColors";
 import { fetchAstronautRoster, fetchMissionFeed } from "@/lib/fetchMissionFeed";
+import { fetchDonkiFlares } from "@/lib/fetchDonkiFlares";
+import { applyDonkiFlaresToDailyHistory } from "@/lib/donki/applyFlaresToHistory";
+import { SolarFlareAlertCard } from "@/features/dashboard/SolarFlareAlertCard";
+import type { DonkiFlareFeedResponse } from "@/types/health";
 import { fetchMissionTelemetryArchive } from "@/lib/telemetryArchive";
 import type { MissionTelemetryArchive } from "@/types/health";
 import { mergeActiveScenarios } from "@/lib/mergeMissionScenarios";
@@ -170,6 +174,7 @@ export function MissionDashboard() {
   const [refreshToken, setRefreshToken] = useState(0);
   const [pulseOn, setPulseOn] = useState(false);
   const [updateNote, setUpdateNote] = useState("");
+  const [donkiFeed, setDonkiFeed] = useState<DonkiFlareFeedResponse | null>(null);
   const baselineLoadSeq = useRef(0);
   const bodyTrackerAnchorRef = useRef<HTMLElement | null>(null);
   const simControlsLocked = replayFocus !== null;
@@ -213,6 +218,10 @@ export function MissionDashboard() {
       setTelemetryArchive(archive);
     });
 
+    void fetchDonkiFlares(30).then((feed) => {
+      if (!cancelled && feed) setDonkiFeed(feed);
+    });
+
     return () => {
       cancelled = true;
     };
@@ -242,6 +251,11 @@ export function MissionDashboard() {
   const dailyHistory = useMemo(
     () => history.filter((row) => !isIntradaySample(row)),
     [history]
+  );
+
+  const chartDailyHistory = useMemo(
+    () => applyDonkiFlaresToDailyHistory(dailyHistory, donkiFeed?.flares),
+    [dailyHistory, donkiFeed?.flares]
   );
 
   const focusReading = replayFocus ?? latest;
@@ -606,6 +620,9 @@ export function MissionDashboard() {
         tabIndex={-1}
         className="mx-auto max-w-7xl space-y-0 px-3 py-6 sm:px-6 sm:py-8 lg:px-8"
       >
+        <div className="mb-6">
+          <SolarFlareAlertCard feed={donkiFeed} locale={locale} />
+        </div>
         {replayFocus ? (
           <section
             ref={bodyTrackerAnchorRef}
@@ -831,8 +848,9 @@ export function MissionDashboard() {
             <MotionReveal>
               <h2 className="mission-section-title mb-4">{ui.missionTimeline}</h2>
               <HealthCharts
-                history={dailyHistory}
+                history={chartDailyHistory}
                 locale={locale}
+                donkiFlares={donkiFeed?.flares}
                 cardioScale={cardioScale}
                 recoveryScale={recoveryScale}
                 radiationScale={radiationScale}

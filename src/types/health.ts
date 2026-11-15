@@ -271,3 +271,39 @@ export interface MemoryGameResult {
   /** 0–100 — fewer moves and less time yield higher scores */
   memoryScore: number;
 }
+
+/** DONKI solar flare (FLR) record — subset of NASA / CCMC JSON */
+export interface DonkiFlareRecord {
+  flrID: string;
+  beginTime: string;
+  peakTime: string;
+  endTime: string;
+  classType: string;
+  sourceLocation?: string;
+  activeRegionNum?: number;
+  link?: string;
+  linkedEvents?: Array<{ activityID: string }> | null;
+}
+
+export type DonkiFlareFeedSource =
+  | "nasa_donki_api"
+  | "ccmc_donki_api"
+  | "mock_ground_api";
+
+export type DonkiFlareAlertSeverity = "none" | "watch" | "warning" | "critical";
+
+export interface DonkiFlareFeedResponse {
+  ok: boolean;
+  source: DonkiFlareFeedSource;
+  startDate: string;
+  endDate: string;
+  flares: DonkiFlareRecord[];
+  alert: {
+    active: boolean;
+    severity: DonkiFlareAlertSeverity;
+    headline: string;
+    peakFlare: DonkiFlareRecord | null;
+  };
+  note: string;
+  fetchedAt: string;
+}

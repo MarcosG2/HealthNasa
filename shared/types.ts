@@ -36,4 +36,8 @@ export type {
   MentalHealthAnswer,
   MentalHealthSurveySubmission,
   MemoryGameResult,
+  DonkiFlareRecord,
+  DonkiFlareFeedSource,
+  DonkiFlareAlertSeverity,
+  DonkiFlareFeedResponse,
 } from "../src/types/health";

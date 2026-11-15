@@ -8,8 +8,10 @@ import {
   dailyHeartRateRange,
   selectCardioArchiveReadings,
 } from "@/lib/telemetryArchive";
+import { applyDonkiFlareToHourlyReading } from "@/lib/donki/applyFlaresToHistory";
 import type {
   CardioChartScale,
+  DonkiFlareRecord,
   MissionTelemetryArchive,
   RadiationChartScale,
   RecoveryChartScale,
@@ -253,7 +255,8 @@ export function buildRadiationTimeline({
   focusMissionDay,
   telemetryArchive = null,
   scale,
-}: BuildPanelInput & { scale: RadiationChartScale }): {
+  donkiFlares,
+}: BuildPanelInput & { scale: RadiationChartScale; donkiFlares?: DonkiFlareRecord[] }): {
   rows: ChartTimelineRow[];
   source: VitalReadings[];
 } {
@@ -289,6 +292,11 @@ export function buildRadiationTimeline({
       });
     } else {
       readings = daily ? buildHourlySamples(daily) : [];
+    }
+    if (donkiFlares?.length) {
+      readings = readings.map((r) =>
+        applyDonkiFlareToHourlyReading(r, donkiFlares, source)
+      );
     }
   }
 

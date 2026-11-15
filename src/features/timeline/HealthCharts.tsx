@@ -25,6 +25,7 @@ import { formatMissionTimestamp } from "@/lib/missionTime";
 import type {
   CardioChartScale,
   ChartPanelId,
+  DonkiFlareRecord,
   MissionTelemetryArchive,
   RadiationChartScale,
   RecoveryChartScale,
@@ -68,6 +69,7 @@ interface HealthChartsProps {
   loadArchiveDisabled?: boolean;
   animateLines?: boolean;
   telemetryArchive?: MissionTelemetryArchive | null;
+  donkiFlares?: DonkiFlareRecord[];
 }
 
 export function HealthCharts({
@@ -96,6 +98,7 @@ export function HealthCharts({
   loadArchiveDisabled = false,
   animateLines = true,
   telemetryArchive = null,
+  donkiFlares,
 }: HealthChartsProps) {
   const ui = UI_STRINGS[locale];
   const effectiveCardioDay =
@@ -148,9 +151,23 @@ export function HealthCharts({
         telemetryArchive,
         focusMissionDay: effectiveRadiationDay,
         scale: radiationScale,
+        donkiFlares,
       }),
-    [history, locale, effectiveRadiationDay, focusHourUtc, telemetryArchive, radiationScale]
+    [history, locale, effectiveRadiationDay, focusHourUtc, telemetryArchive, radiationScale, donkiFlares]
   );
+
+  const flareAxisMarkers = useMemo(() => {
+    if (!donkiFlares?.length || radiationScale !== "day") return [];
+    const labels = new Set(radiation.rows.map((r) => r.axisLabel));
+    const markers: { axisLabel: string; classType: string }[] = [];
+    for (const row of radiation.rows) {
+      const classTag = row.reading.extraMetrics?.donkiFlareClass;
+      if (typeof classTag === "string" && labels.has(row.axisLabel)) {
+        markers.push({ axisLabel: row.axisLabel, classType: classTag });
+      }
+    }
+    return markers;
+  }, [donkiFlares, radiation.rows, radiationScale]);
 
   const selectedAxisLabel = useMemo(() => {
     if (!selectedRecordedAt) return null;
@@ -517,6 +534,21 @@ export function HealthCharts({
             <Tooltip labelFormatter={tooltipLabel} contentStyle={tooltipStyle} />
             <Legend />
             {selectionMarker(radiation.rows)}
+            {flareAxisMarkers.map((m) => (
+              <ReferenceLine
+                key={`flare-${m.axisLabel}-${m.classType}`}
+                x={m.axisLabel}
+                stroke={MISSION_CHART.series.radiationCum}
+                strokeDasharray="2 4"
+                strokeWidth={1.5}
+                label={{
+                  value: `FLR ${m.classType}`,
+                  position: "top",
+                  fill: MISSION_CHART.series.radiationCum,
+                  fontSize: 10,
+                }}
+              />
+            ))}
             <ReferenceLine
               yAxisId="dose"
               y={radiationScale === "day" ? RADIATION_CHART_CAUTION_MSV : radiationCautionHour}
