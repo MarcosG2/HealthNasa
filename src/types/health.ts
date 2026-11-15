@@ -225,3 +225,49 @@ export interface MissionTelemetryArchive {
     hour: TelemetryRollupBucket[];
   };
 }
+
+/** 1 = low / negative, 5 = high / positive (wording varies per question) */
+export type MentalHealthLikert = 1 | 2 | 3 | 4 | 5;
+
+export type MentalHealthQuestionCategory =
+  | "mood"
+  | "sleep"
+  | "isolation"
+  | "stress"
+  | "focus"
+  | "crew";
+
+export interface MentalHealthQuestion {
+  id: string;
+  text: string;
+  category: MentalHealthQuestionCategory;
+  /** When true, higher Likert = worse for composite scoring */
+  inverted?: boolean;
+}
+
+export interface MentalHealthAnswer {
+  questionId: string;
+  value: MentalHealthLikert;
+}
+
+export interface MentalHealthSurveySubmission {
+  id: string;
+  submittedAt: string;
+  astronautId?: string;
+  missionDay?: number;
+  sessionQuestionIds: string[];
+  answers: MentalHealthAnswer[];
+  /** 0–100 wellness index derived from answers */
+  compositeScore: number;
+}
+
+export interface MemoryGameResult {
+  submittedAt: string;
+  gridSize: 5;
+  totalPairs: number;
+  pairsFound: number;
+  moves: number;
+  elapsedSec: number;
+  /** 0–100 — fewer moves and less time yield higher scores */
+  memoryScore: number;
+}

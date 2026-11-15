@@ -30,4 +30,10 @@ export type {
   TelemetryAnomalySpec,
   MissionTelemetryArchiveMeta,
   MissionTelemetryArchive,
+  MentalHealthLikert,
+  MentalHealthQuestionCategory,
+  MentalHealthQuestion,
+  MentalHealthAnswer,
+  MentalHealthSurveySubmission,
+  MemoryGameResult,
 } from "../src/types/health";

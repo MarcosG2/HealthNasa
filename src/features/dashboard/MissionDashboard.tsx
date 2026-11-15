@@ -32,6 +32,7 @@ import {
 import { loadMissionLogs, LOG_KEY, saveMissionLogs } from "@/lib/missionLogsStorage";
 import { formatMissionTimestamp } from "@/lib/missionTime";
 import { MissionRoutinePanel } from "@/features/vitals-form/MissionRoutinePanel";
+import { CognitiveWellnessPanel } from "@/features/vitals-form/CognitiveWellnessPanel";
 import {
   ENVIRONMENT_LABELS,
   ENVIRONMENT_MISSION_META,
@@ -132,18 +133,6 @@ function saveAstronautId(id: string) {
   } catch {
     /* ignore */
   }
-}
-
-function findLastVisualAttachment(
-  logs: VitalReadings[]
-): { url: string; missionDay: number } | null {
-  for (let i = logs.length - 1; i >= 0; i -= 1) {
-    const url = logs[i].imageNoteOrDataUrl;
-    if (url?.startsWith("data:image")) {
-      return { url, missionDay: logs[i].missionDay };
-    }
-  }
-  return null;
 }
 
 function applyScenarioOverlay(
@@ -499,8 +488,6 @@ export function MissionDashboard() {
       setArchiveLoading(false);
     }
   }
-
-  const lastVisualAttachment = findLastVisualAttachment(history);
 
   const envLabel = ENVIRONMENT_LABELS[locale][focusReading.environment];
 
@@ -908,32 +895,35 @@ export function MissionDashboard() {
               </p>
             </MotionReveal>
 
-            <MotionReveal>
-              <h2 className="mission-section-title mb-4">{ui.lastVisualInspection}</h2>
-              <div className="mission-panel space-y-3 p-4 text-sm text-base-content/85">
-                {lastVisualAttachment ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={lastVisualAttachment.url}
-                    alt={ui.uploadPreview}
-                    className="max-h-48 w-full rounded-lg object-contain bg-base-300/40"
-                  />
-                ) : (
-                  <p className="text-base-content/70">{ui.noVisualAttachment}</p>
-                )}
-                <p className="text-xs text-base-content/65">
-                  {ui.groundSyncSimulated.replace("{latency}", envMeta.latencyLabel)}
-                </p>
-                {lastVisualAttachment ? (
-                  <p className="mission-readout text-xs text-primary">
-                    {ui.missionDay} {lastVisualAttachment.missionDay}
-                  </p>
-                ) : null}
-              </div>
-            </MotionReveal>
+          </aside>
+        </div>
 
-            <MotionReveal>
-              <h2 className="mission-section-title mb-4">{ui.dailyCountermeasures}</h2>
+        <section
+          className="mission-zone mt-8 scroll-mt-6"
+          aria-labelledby="crew-wellness-heading"
+        >
+          <h2 id="crew-wellness-heading" className="mission-section-title mb-6">
+            {locale === "es"
+              ? "Bienestar cognitivo y contramedidas diarias"
+              : "Cognitive wellness & daily countermeasures"}
+          </h2>
+          <div className="grid min-w-0 gap-8 xl:grid-cols-12 xl:gap-10">
+            <div className="min-w-0 xl:col-span-7">
+              <h3 className="mission-section-title mb-4 text-base sm:text-lg">
+                {locale === "es"
+                  ? "Bienestar cognitivo y mental"
+                  : "Cognitive & mental wellness"}
+              </h3>
+              <CognitiveWellnessPanel
+                locale={locale}
+                astronautId={selectedAstronautId}
+                missionDay={focusReading.missionDay}
+              />
+            </div>
+            <div className="min-w-0 xl:col-span-5">
+              <h3 className="mission-section-title mb-4 text-base sm:text-lg">
+                {ui.dailyCountermeasures}
+              </h3>
               <MissionRoutinePanel
                 locale={locale}
                 onReactionRecorded={onReactionRecorded}
@@ -946,9 +936,9 @@ export function MissionDashboard() {
                   ? "La sincronización con Tierra es opcional; la evaluación clínica se ejecuta en el navegador."
                   : "Ground sync is optional; clinical evaluation runs entirely in the browser."}
               </p>
-            </MotionReveal>
-          </aside>
-        </div>
+            </div>
+          </div>
+        </section>
       </main>
 
       <footer className="border-t border-base-300/80 bg-base-100/90">
