@@ -3,7 +3,6 @@
 import { useMemo, type ReactElement, type ReactNode } from "react";
 import {
   Area,
-  AreaChart,
   CartesianGrid,
   ComposedChart,
   Legend,
@@ -111,12 +110,13 @@ export function HealthCharts({
     "station";
   const envMeta = ENVIRONMENT_MISSION_META[locale][focusEnv];
 
-  const sharedInput = { history, locale, focusHourUtc, telemetryArchive };
-
   const cardio = useMemo(
     () =>
       buildCardioTimeline({
-        ...sharedInput,
+        history,
+        locale,
+        focusHourUtc,
+        telemetryArchive,
         focusMissionDay: effectiveCardioDay,
         scale: cardioScale,
       }),
@@ -125,7 +125,10 @@ export function HealthCharts({
   const recovery = useMemo(
     () =>
       buildRecoveryTimeline({
-        ...sharedInput,
+        history,
+        locale,
+        focusHourUtc,
+        telemetryArchive,
         focusMissionDay: effectiveRecoveryDay,
         scale: recoveryScale,
       }),
@@ -134,7 +137,10 @@ export function HealthCharts({
   const radiation = useMemo(
     () =>
       buildRadiationTimeline({
-        ...sharedInput,
+        history,
+        locale,
+        focusHourUtc,
+        telemetryArchive,
         focusMissionDay: effectiveRadiationDay,
         scale: radiationScale,
       }),

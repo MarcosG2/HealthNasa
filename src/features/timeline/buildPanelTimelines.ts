@@ -188,7 +188,7 @@ export function buildRecoveryTimeline({
   source: VitalReadings[];
 } {
   const source =
-    telemetryArchive?.daily?.length && scale === "day"
+    telemetryArchive?.daily?.length
       ? telemetryArchive.daily
       : resolveTimelineSource(history);
 
@@ -198,7 +198,33 @@ export function buildRecoveryTimeline({
     const daily =
       dailyReadingForMissionDay(source, focusMissionDay) ??
       source.find((r) => r.missionDay === focusMissionDay);
-    readings = daily ? buildHourlySamples(daily) : [];
+    const archiveHours = telemetryArchive?.rollups?.hour?.filter(
+      (b) => b.missionDay === focusMissionDay
+    );
+    if (archiveHours && archiveHours.length > 0 && daily) {
+      readings = archiveHours.map((b) => {
+        const hour = new Date(b.bucketStart).getUTCHours();
+        return {
+          ...daily,
+          recordedAt: b.bucketStart,
+          missionDay: focusMissionDay,
+          bloodSugar: b.bloodSugarAvg ?? daily.bloodSugar,
+          temperature: b.temperatureAvg ?? daily.temperature,
+          moodScore: Math.round(b.moodAvg ?? daily.moodScore),
+          stressLevel: Math.round(b.stressAvg ?? daily.stressLevel ?? 3),
+          heartRate: b.heartRateAvg,
+          systolicBP: b.systolicAvg,
+          extraMetrics: {
+            ...daily.extraMetrics,
+            intradaySlot: String(hour),
+            sampleKind: "hour",
+            telemetryLayer: "rollup",
+          },
+        };
+      });
+    } else {
+      readings = daily ? buildHourlySamples(daily) : [];
+    }
   }
 
   let cumulative = 0;
@@ -225,7 +251,7 @@ export function buildRadiationTimeline({
   source: VitalReadings[];
 } {
   const source =
-    telemetryArchive?.daily?.length && scale === "day"
+    telemetryArchive?.daily?.length
       ? telemetryArchive.daily
       : resolveTimelineSource(history);
 
@@ -235,7 +261,28 @@ export function buildRadiationTimeline({
     const daily =
       dailyReadingForMissionDay(source, focusMissionDay) ??
       source.find((r) => r.missionDay === focusMissionDay);
-    readings = daily ? buildHourlySamples(daily) : [];
+    const archiveHours = telemetryArchive?.rollups?.hour?.filter(
+      (b) => b.missionDay === focusMissionDay
+    );
+    if (archiveHours && archiveHours.length > 0 && daily) {
+      readings = archiveHours.map((b) => {
+        const hour = new Date(b.bucketStart).getUTCHours();
+        return {
+          ...daily,
+          recordedAt: b.bucketStart,
+          missionDay: focusMissionDay,
+          radiationMsv: b.radiationDose ?? (daily.radiationMsv ? daily.radiationMsv / 24 : 0.02),
+          extraMetrics: {
+            ...daily.extraMetrics,
+            intradaySlot: String(hour),
+            sampleKind: "hour",
+            telemetryLayer: "rollup",
+          },
+        };
+      });
+    } else {
+      readings = daily ? buildHourlySamples(daily) : [];
+    }
   }
 
   const priorDose =

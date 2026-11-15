@@ -169,6 +169,9 @@ export interface TelemetryHotSample {
   diastolicBP: number;
   bloodSugar: number;
   temperature: number;
+  radiationMsv?: number;
+  stressLevel?: number;
+  moodScore?: number;
 }
 
 /** Aggregated bucket for warm/cold chart paths (minute or hour) */
@@ -181,6 +184,11 @@ export interface TelemetryRollupBucket {
   heartRateMax: number;
   systolicAvg: number;
   sampleCount: number;
+  bloodSugarAvg?: number;
+  temperatureAvg?: number;
+  radiationDose?: number;
+  stressAvg?: number;
+  moodAvg?: number;
 }
 
 export interface TelemetryAnomalySpec {
@@ -188,7 +196,9 @@ export interface TelemetryAnomalySpec {
   utcHour: number;
   utcMinute: number;
   durationMinutes: number;
-  peakHeartRate: number;
+  peakHeartRate?: number;
+  peakRadiationMsvHourly?: number;
+  stressLevelBoost?: number;
   label?: string;
 }
 

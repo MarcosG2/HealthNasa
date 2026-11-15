@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "generate:telemetry": "npx tsx tools/mission-telemetry-generator/cli.ts"
+    "generate:telemetry": "node node_modules/jiti/lib/jiti-cli.mjs tools/mission-telemetry-generator/cli.ts"
   },
   "dependencies": {
     "@emmorts/body-muscles": "^2.1.1",

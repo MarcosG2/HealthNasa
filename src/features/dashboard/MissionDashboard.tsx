@@ -20,12 +20,10 @@ import {
   Users,
 } from "lucide-react";
 import { buildMockMissionHistory, MOCK_MISSION_HISTORY } from "@/data/mockMissionHistory";
-import { missionLogEventsForDay } from "@/data/intradaySamples";
 import { BodyMap } from "@/features/body-map/BodyMap";
 import { evaluateHealth } from "@/features/rules-engine/evaluateHealth";
 import { DayReplayDetail } from "@/features/timeline/DayReplayDetail";
 import { HealthCharts } from "@/features/timeline/HealthCharts";
-import { VitalsInputForm } from "@/features/vitals-form/VitalsInputForm";
 import {
   clinicalReadingForEvaluation,
   dailyReadingForMissionDay,
@@ -165,7 +163,6 @@ export function MissionDashboard() {
   const [activeScenarios, setActiveScenarios] = useState<MissionScenarioId[]>([]);
   const [environment, setEnvironment] = useState<MissionEnvironment>("station");
   const [locale, setLocale] = useState<AppLocale>("en");
-  const [pendingReactionMs, setPendingReactionMs] = useState<number | undefined>();
   const [mockFeedLabel, setMockFeedLabel] = useState<string | null>(null);
   const [selectedAstronautId, setSelectedAstronautId] = useState<string>("eva-chen");
   const [roster, setRoster] = useState<MockAstronautProfile[]>(ASTRONAUT_ROSTER);
@@ -187,8 +184,8 @@ export function MissionDashboard() {
 
   useEffect(() => {
     // Post-mount hydration: SSR uses MOCK_MISSION_HISTORY; client restores saved logs.
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional hydration guard
     const hydratedLogs = loadMissionLogs();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional hydration guard
     setBaselineHistory(hydratedLogs);
     if (
       hydratedLogs.length >= 28 &&
@@ -433,32 +430,21 @@ export function MissionDashboard() {
     });
   }
 
-  function appendReading(reading: VitalReadings) {
-    if (simControlsLocked) return;
-    const rowEnv = reading.environment ?? environment;
-    const enriched: VitalReadings = {
-      ...reading,
-      environment: rowEnv,
-      extraMetrics: {
-        missionEvents: missionLogEventsForDay(reading.missionDay, rowEnv),
-        ...reading.extraMetrics,
-      },
-    };
-    if (pendingReactionMs !== undefined) {
-      enriched.extraMetrics = {
-        ...enriched.extraMetrics,
-        reactionTimeMs: pendingReactionMs,
-      };
-    }
+  function onReactionRecorded(ms: number) {
     setBaselineHistory((prev) => {
-      const daily = prev.filter((r) => !isIntradaySample(r));
-      const withoutDay = daily.filter((r) => r.missionDay !== enriched.missionDay);
-      const next = [...withoutDay, enriched].sort((a, b) => a.missionDay - b.missionDay);
+      if (!prev.length) return prev;
+      const last = prev[prev.length - 1];
+      const updated: VitalReadings = {
+        ...last,
+        extraMetrics: {
+          ...last.extraMetrics,
+          reactionTimeMs: ms,
+        },
+      };
+      const next = [...prev.slice(0, -1), updated];
       saveMissionLogs(next);
       return next;
     });
-    setPendingReactionMs(undefined);
-    returnToLiveNow();
   }
 
   async function load30DayArchive() {
@@ -863,23 +849,6 @@ export function MissionDashboard() {
                 />
               ) : null}
             </MotionReveal>
-
-            <MotionReveal>
-              <h2 className="mission-section-title mb-4">{ui.logVitals}</h2>
-              {simControlsLocked ? (
-                <p className="mission-panel p-4 text-sm text-base-content/80">
-                  {ui.vitalsReadOnlyInReplay}
-                </p>
-              ) : (
-                <VitalsInputForm
-                  environment={environment}
-                  missionDay={latest.missionDay + 1}
-                  locale={locale}
-                  pendingReactionMs={pendingReactionMs}
-                  onSubmit={appendReading}
-                />
-              )}
-            </MotionReveal>
           </section>
 
           <aside className="space-y-6 xl:col-span-4 xl:sticky xl:top-6 xl:self-start">
@@ -933,7 +902,7 @@ export function MissionDashboard() {
               <h2 className="mission-section-title mb-4">{ui.dailyCountermeasures}</h2>
               <MissionRoutinePanel
                 locale={locale}
-                onReactionRecorded={(ms) => setPendingReactionMs(ms)}
+                onReactionRecorded={onReactionRecorded}
               />
               <p className="mt-4 text-sm leading-relaxed text-base-content/75">
                 {profile.program}
