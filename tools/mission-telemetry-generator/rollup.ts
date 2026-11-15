@@ -16,37 +16,21 @@ interface RollupAcc {
   count: number;
 }
 
-function bucketKey(iso: string, kind: "minute" | "hour"): string {
-  const d = new Date(iso);
-  const y = d.getUTCFullYear();
-  const mo = d.getUTCMonth();
-  const day = d.getUTCDate();
-  const h = d.getUTCHours();
+function bucketStartFromIso(iso: string, kind: "minute" | "hour"): string {
   if (kind === "hour") {
-    return `${y}-${mo}-${day}T${h}`;
+    return `${iso.slice(0, 13)}:00:00.000Z`;
   }
-  const m = d.getUTCMinutes();
-  return `${y}-${mo}-${day}T${h}:${m}`;
-}
-
-function bucketStartFromKey(key: string, kind: "minute" | "hour"): string {
-  if (kind === "hour") {
-    const [datePart, hourPart] = key.split("T");
-    return `${datePart}T${hourPart.padStart(2, "0")}:00:00.000Z`;
-  }
-  const [datePart, hm] = key.split("T");
-  const [hourPart, minPart] = hm.split(":");
-  return `${datePart}T${hourPart.padStart(2, "0")}:${minPart.padStart(2, "0")}:00.000Z`;
+  return `${iso.slice(0, 16)}:00.000Z`;
 }
 
 function flushBucket(
-  key: string,
+  bucketStart: string,
   acc: RollupAcc,
   missionDay: number,
   kind: "minute" | "hour"
 ): TelemetryRollupBucket {
   return {
-    bucketStart: bucketStartFromKey(key, kind),
+    bucketStart,
     missionDay,
     bucketKind: kind,
     heartRateAvg: Math.round(acc.heartRateSum / acc.count),
@@ -79,7 +63,7 @@ function aggregate(
 ): TelemetryRollupBucket[] {
   const map = new Map<string, RollupAcc & { missionDay: number }>();
   for (const row of samples) {
-    const key = bucketKey(row.recordedAt, kind);
+    const key = bucketStartFromIso(row.recordedAt, kind);
     const existing = map.get(key);
     if (!existing) {
       map.set(key, {

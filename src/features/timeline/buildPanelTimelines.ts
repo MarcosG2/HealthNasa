@@ -73,6 +73,9 @@ function axisForCardio(reading: VitalReadings, scale: CardioChartScale, locale: 
   if (scale === "day") return formatDayAxis(reading.missionDay, reading.recordedAt, locale);
   if (scale === "minute") {
     const d = new Date(reading.recordedAt);
+    if (Number.isNaN(d.getTime())) {
+      return reading.extraMetrics?.intradaySlot ? String(reading.extraMetrics.intradaySlot) : "00:00";
+    }
     return `${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
   }
   return formatIntradayAxis(reading.recordedAt, locale);
@@ -230,10 +233,14 @@ export function buildRecoveryTimeline({
   let cumulative = 0;
   const rows = readings.map((reading) => {
     cumulative += reading.radiationMsv ?? 0;
+    const d = new Date(reading.recordedAt);
+    const hourLabel = Number.isNaN(d.getTime())
+      ? (reading.extraMetrics?.intradaySlot ? `${String(reading.extraMetrics.intradaySlot)}:00` : "00:00")
+      : `${String(d.getUTCHours()).padStart(2, "0")}:00`;
     const axisLabel =
       scale === "day"
         ? formatDayAxis(reading.missionDay, reading.recordedAt, locale)
-        : `${String(new Date(reading.recordedAt).getUTCHours()).padStart(2, "0")}:00`;
+        : hourLabel;
     return toRow(reading, axisLabel, cumulative);
   });
 
@@ -295,10 +302,14 @@ export function buildRadiationTimeline({
   let cumulative = scale === "day" ? 0 : priorDose;
   const rows = readings.map((reading) => {
     cumulative += reading.radiationMsv ?? 0;
+    const d = new Date(reading.recordedAt);
+    const hourLabel = Number.isNaN(d.getTime())
+      ? (reading.extraMetrics?.intradaySlot ? `${String(reading.extraMetrics.intradaySlot)}:00` : "00:00")
+      : `${String(d.getUTCHours()).padStart(2, "0")}:00`;
     const axisLabel =
       scale === "day"
         ? formatDayAxis(reading.missionDay, reading.recordedAt, locale)
-        : `${String(new Date(reading.recordedAt).getUTCHours()).padStart(2, "0")}:00`;
+        : hourLabel;
     return toRow(reading, axisLabel, cumulative);
   });
 
