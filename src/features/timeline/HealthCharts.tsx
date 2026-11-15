@@ -203,7 +203,7 @@ export function HealthCharts({
 
   return (
     <div className="space-y-6">
-      <div className="mission-panel sticky top-14 z-10 flex flex-col gap-3 border border-base-300/60 p-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mission-panel flex flex-col gap-3 border border-base-300/60 p-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <p className="text-xs text-base-content/65">{ui.chartPointHintPanels}</p>
           {cardioScale === "5sec" ? (
