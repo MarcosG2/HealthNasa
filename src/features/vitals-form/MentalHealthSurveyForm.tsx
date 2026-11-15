@@ -6,6 +6,7 @@ import type { AppLocale } from "@/lib/locale";
 import type { MentalHealthLikert, MentalHealthSurveySubmission } from "@/types/health";
 import {
   compositeWellnessScore,
+  mentalHealthQuestionText,
   pickSessionQuestions,
 } from "@/features/vitals-form/data/mentalHealthQuestions";
 import {
@@ -269,12 +270,12 @@ export function MentalHealthSurveyForm({
               <span className="mission-readout text-xs text-primary">
                 {globalOffset + index + 1}/{questions.length}
               </span>{" "}
-              {q.text}
+              {mentalHealthQuestionText(q, locale)}
             </p>
             <div
               className="mt-3 flex flex-wrap items-center gap-2"
               role="radiogroup"
-              aria-label={q.text}
+              aria-label={mentalHealthQuestionText(q, locale)}
             >
               {LIKERT.map((value) => {
                 const selected = answers[q.id] === value;

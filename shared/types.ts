@@ -32,6 +32,7 @@ export type {
   MissionTelemetryArchive,
   MentalHealthLikert,
   MentalHealthQuestionCategory,
+  MentalHealthLocalizedText,
   MentalHealthQuestion,
   MentalHealthAnswer,
   MentalHealthSurveySubmission,

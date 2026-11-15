@@ -237,9 +237,14 @@ export type MentalHealthQuestionCategory =
   | "focus"
   | "crew";
 
+export interface MentalHealthLocalizedText {
+  en: string;
+  es: string;
+}
+
 export interface MentalHealthQuestion {
   id: string;
-  text: string;
+  text: MentalHealthLocalizedText;
   category: MentalHealthQuestionCategory;
   /** When true, higher Likert = worse for composite scoring */
   inverted?: boolean;
