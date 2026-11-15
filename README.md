@@ -1,6 +1,6 @@
 # Mission Health Control
 
-Offline-first astronaut health monitoring demo for **NASA Space Apps Challenge**. The browser runs deterministic evaluation inspired by NASA Human Research Program (HRP) thresholds—no blocking API required for core UX.
+-first astronaut health monitoring demo for **NASA Space Apps Challenge**. The browser runs deterministic evaluation inspired by NASA Human Research Program (HRP) thresholds—no blocking API required for core UX.
 
 ## Features
 
