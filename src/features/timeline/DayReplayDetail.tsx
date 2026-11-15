@@ -75,7 +75,7 @@ export function DayReplayDetail({
   );
 
   return (
-    <div className="mission-panel mt-4 animate-[reveal_0.45s_cubic-bezier(0.16,1,0.3,1)_both] space-y-4 border border-primary/40 p-4">
+    <div className="mission-panel mt-4 space-y-4 border border-primary/45 p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="mission-section-title text-base">{ui.dayReplayTitle}</p>
@@ -104,7 +104,7 @@ export function DayReplayDetail({
 
       {events.length > 0 ? (
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-base-content/65">
+          <p className="text-xs font-medium text-base-content/70">
             {ui.dayEventsLabel}
           </p>
           <ul className="mt-2 flex flex-wrap gap-2">
@@ -156,7 +156,7 @@ export function DayReplayDetail({
 function VitalChip({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-field border border-base-300/60 bg-base-100/30 px-3 py-2">
-      <p className="text-[10px] font-semibold uppercase tracking-wide text-base-content/60">
+      <p className="text-[10px] font-medium text-base-content/60">
         {label}
       </p>
       <p className="mission-readout text-base-content">{value}</p>

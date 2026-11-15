@@ -31,6 +31,11 @@ import type {
   VitalReadings,
 } from "@/types/health";
 import {
+  CHART_GRID_PROPS,
+  CHART_MARGIN,
+  MISSION_CHART,
+} from "@/lib/chartTheme";
+import {
   buildCardioTimeline,
   buildRadiationTimeline,
   buildRecoveryTimeline,
@@ -191,7 +196,7 @@ export function HealthCharts({
     return (
       <ReferenceLine
         x={selectedAxisLabel}
-        stroke="#22d3ee"
+        stroke={MISSION_CHART.selection}
         strokeWidth={2}
         strokeDasharray="4 2"
         ifOverflow="extendDomain"
@@ -199,11 +204,14 @@ export function HealthCharts({
     );
   }
 
-  const activeDot = { r: 7, stroke: "#22d3ee", strokeWidth: 2, fill: "#0f172a" };
+  const activeDot = MISSION_CHART.activeDot;
+  const tooltipStyle = MISSION_CHART.tooltip;
+  const axisTick = MISSION_CHART.tick;
+  const axisTickSm = MISSION_CHART.tickSm;
 
   return (
     <div className="space-y-6">
-      <div className="mission-panel flex flex-col gap-3 border border-base-300/60 p-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mission-panel flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <p className="text-xs text-base-content/65">{ui.chartPointHintPanels}</p>
           {cardioScale === "5sec" ? (
@@ -231,7 +239,7 @@ export function HealthCharts({
         ) : null}
       </div>
 
-      <div className="mission-panel space-y-2 p-4 text-sm text-base-content/85">
+      <div className="mission-strip space-y-2 rounded-box">
         <p className="mission-section-title text-base">{ui.environmentBrief}</p>
         <p>
           <span className="font-medium text-base-content">{ui.habitatLabel}: </span>
@@ -270,14 +278,25 @@ export function HealthCharts({
         ) : (
           <ComposedChart
             data={cardio.rows}
-            margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
+            margin={CHART_MARGIN}
             onClick={makeClickHandler("cardio")}
             style={{ cursor: onSelectPoint ? "crosshair" : "default" }}
           >
-            <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-            <XAxis dataKey="axisLabel" stroke="#94a3b8" fontSize={10} interval="preserveStartEnd" />
-            <YAxis yAxisId="bp" stroke="#94a3b8" fontSize={12} />
-            <YAxis yAxisId="hr" orientation="right" stroke="#94a3b8" fontSize={12} domain={[40, 190]} />
+            <CartesianGrid {...CHART_GRID_PROPS} />
+            <XAxis
+              dataKey="axisLabel"
+              stroke={MISSION_CHART.axis}
+              tick={axisTick}
+              interval="preserveStartEnd"
+            />
+            <YAxis yAxisId="bp" stroke={MISSION_CHART.axis} tick={axisTickSm} />
+            <YAxis
+              yAxisId="hr"
+              orientation="right"
+              stroke={MISSION_CHART.axis}
+              tick={axisTickSm}
+              domain={[40, 190]}
+            />
             <Tooltip labelFormatter={tooltipLabel} contentStyle={tooltipStyle} />
             <Legend />
             {selectionMarker(cardio.rows)}
@@ -288,8 +307,8 @@ export function HealthCharts({
                   type="monotone"
                   dataKey="heartRateMax"
                   name={ui.chartHeartRateMax}
-                  stroke="#f472b6"
-                  fill="#a78bfa33"
+                  stroke={MISSION_CHART.series.hrMax}
+                  fill={MISSION_CHART.series.bandFill}
                   fillOpacity={0.35}
                   dot={false}
                   isAnimationActive={animateLines}
@@ -299,8 +318,8 @@ export function HealthCharts({
                   type="monotone"
                   dataKey="heartRateMin"
                   name={ui.chartHeartRateMin}
-                  stroke="#34d399"
-                  fill="#0f172a"
+                  stroke={MISSION_CHART.series.hrMin}
+                  fill={MISSION_CHART.void}
                   fillOpacity={0}
                   dot={false}
                   isAnimationActive={animateLines}
@@ -310,7 +329,7 @@ export function HealthCharts({
                   type="monotone"
                   dataKey="heartRate"
                   name={ui.chartHeartRateAvg}
-                  stroke="#a78bfa"
+                  stroke={MISSION_CHART.series.hrAvg}
                   strokeWidth={2}
                   dot={{ r: 3 }}
                   activeDot={activeDot}
@@ -323,7 +342,7 @@ export function HealthCharts({
                 type="monotone"
                 dataKey="heartRate"
                 name={ui.chartHeartRate}
-                stroke="#a78bfa"
+                stroke={MISSION_CHART.series.hrAvg}
                 strokeWidth={2}
                 dot={false}
                 activeDot={activeDot}
@@ -335,7 +354,7 @@ export function HealthCharts({
               type="monotone"
               dataKey="systolicBP"
               name={ui.chartSystolic}
-              stroke="#38bdf8"
+              stroke={MISSION_CHART.series.systolic}
               strokeWidth={2}
               dot={cardioScale === "day" ? { r: 3 } : false}
               activeDot={activeDot}
@@ -374,14 +393,24 @@ export function HealthCharts({
         ) : (
           <LineChart
             data={recovery.rows}
-            margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
+            margin={CHART_MARGIN}
             onClick={makeClickHandler("recovery")}
             style={{ cursor: onSelectPoint ? "crosshair" : "default" }}
           >
-            <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-            <XAxis dataKey="axisLabel" stroke="#94a3b8" fontSize={10} interval="preserveStartEnd" />
-            <YAxis yAxisId="sleep" stroke="#94a3b8" fontSize={12} domain={[0, 10]} />
-            <YAxis yAxisId="met" orientation="right" stroke="#94a3b8" fontSize={12} />
+            <CartesianGrid {...CHART_GRID_PROPS} />
+            <XAxis
+              dataKey="axisLabel"
+              stroke={MISSION_CHART.axis}
+              tick={axisTick}
+              interval="preserveStartEnd"
+            />
+            <YAxis
+              yAxisId="sleep"
+              stroke={MISSION_CHART.axis}
+              tick={axisTickSm}
+              domain={[0, 10]}
+            />
+            <YAxis yAxisId="met" orientation="right" stroke={MISSION_CHART.axis} tick={axisTickSm} />
             <Tooltip labelFormatter={tooltipLabel} contentStyle={tooltipStyle} />
             <Legend />
             {selectionMarker(recovery.rows)}
@@ -392,7 +421,7 @@ export function HealthCharts({
                   type="monotone"
                   dataKey="sleepHours"
                   name={ui.chartSleep}
-                  stroke="#34d399"
+                  stroke={MISSION_CHART.series.sleep}
                   strokeWidth={2}
                   dot={{ r: 3 }}
                   activeDot={activeDot}
@@ -403,7 +432,7 @@ export function HealthCharts({
                   type="monotone"
                   dataKey="stressLevel"
                   name={ui.chartStress}
-                  stroke="#fb7185"
+                  stroke={MISSION_CHART.series.glucose}
                   strokeWidth={2}
                   dot={{ r: 3 }}
                   activeDot={activeDot}
@@ -417,7 +446,7 @@ export function HealthCharts({
                   type="monotone"
                   dataKey="bloodSugar"
                   name={ui.chartGlucose}
-                  stroke="#fbbf24"
+                  stroke={MISSION_CHART.series.stress}
                   strokeWidth={2}
                   dot={false}
                   activeDot={activeDot}
@@ -428,7 +457,7 @@ export function HealthCharts({
                   type="monotone"
                   dataKey="moodScore"
                   name={ui.chartMood}
-                  stroke="#38bdf8"
+                  stroke={MISSION_CHART.series.mood}
                   strokeWidth={2}
                   strokeDasharray="4 3"
                   dot={false}
@@ -470,15 +499,20 @@ export function HealthCharts({
         ) : (
           <LineChart
             data={radiation.rows}
-            margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
+            margin={CHART_MARGIN}
             onClick={makeClickHandler("radiation")}
             style={{ cursor: onSelectPoint ? "crosshair" : "default" }}
           >
-            <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-            <XAxis dataKey="axisLabel" stroke="#94a3b8" fontSize={10} interval="preserveStartEnd" />
-            <YAxis yAxisId="dose" stroke="#94a3b8" fontSize={12} />
+            <CartesianGrid {...CHART_GRID_PROPS} />
+            <XAxis
+              dataKey="axisLabel"
+              stroke={MISSION_CHART.axis}
+              tick={axisTick}
+              interval="preserveStartEnd"
+            />
+            <YAxis yAxisId="dose" stroke={MISSION_CHART.axis} tick={axisTickSm} />
             {radiationScale === "day" ? (
-              <YAxis yAxisId="cum" orientation="right" stroke="#94a3b8" fontSize={12} />
+              <YAxis yAxisId="cum" orientation="right" stroke={MISSION_CHART.axis} tick={axisTickSm} />
             ) : null}
             <Tooltip labelFormatter={tooltipLabel} contentStyle={tooltipStyle} />
             <Legend />
@@ -486,7 +520,7 @@ export function HealthCharts({
             <ReferenceLine
               yAxisId="dose"
               y={radiationScale === "day" ? RADIATION_CHART_CAUTION_MSV : radiationCautionHour}
-              stroke="#fbbf24"
+              stroke={MISSION_CHART.series.radiation}
               strokeDasharray="4 4"
             />
             <Line
@@ -494,7 +528,7 @@ export function HealthCharts({
               type="monotone"
               dataKey="radiationMsv"
               name={ui.vitals.radiationMsv}
-              stroke="#f472b6"
+              stroke={MISSION_CHART.series.hrMax}
               strokeWidth={2}
               dot={radiationScale === "day" ? { r: 3 } : false}
               activeDot={activeDot}
@@ -506,7 +540,7 @@ export function HealthCharts({
                 type="monotone"
                 dataKey="radiationCumulative"
                 name={ui.chartRadiationCumulative}
-                stroke="#fb7185"
+                stroke={MISSION_CHART.series.radiationCum}
                 strokeWidth={2}
                 strokeDasharray="6 3"
                 dot={false}
@@ -518,7 +552,7 @@ export function HealthCharts({
                 type="monotone"
                 dataKey="radiationCumulative"
                 name={ui.chartRadiationCumulativeDay}
-                stroke="#fb7185"
+                stroke={MISSION_CHART.series.radiationCum}
                 strokeWidth={2}
                 strokeDasharray="6 3"
                 dot={false}
@@ -558,12 +592,6 @@ function hintForRadiation(
 ): string {
   return scale === "day" ? ui.radiationHintDay : ui.radiationHintHour;
 }
-
-const tooltipStyle = {
-  background: "#0f172a",
-  border: "1px solid #334155",
-  borderRadius: 8,
-};
 
 interface MissionDayPickerConfig {
   label: string;
@@ -644,16 +672,18 @@ function ChartPanel<S extends string>({
 function PanelHeading({ title, hint }: { title: string; hint: string }) {
   return (
     <div className="min-w-0">
-      <h3 className="text-sm font-medium">{title}</h3>
-      <p className="mt-1 text-[10px] text-base-content/55">{hint}</p>
+      <h3 className="mission-section-title text-sm">{title}</h3>
+      <p className="mt-1 text-xs text-base-content/65">{hint}</p>
     </div>
   );
 }
 
 function ChartContainer({ children }: { children: ReactElement }) {
   return (
-    <ResponsiveContainer width="100%" height={220}>
-      {children}
-    </ResponsiveContainer>
+    <div className="mission-chart-well min-h-[200px] sm:min-h-[220px]">
+      <ResponsiveContainer width="100%" height={220}>
+        {children}
+      </ResponsiveContainer>
+    </div>
   );
 }

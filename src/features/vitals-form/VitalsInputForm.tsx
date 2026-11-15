@@ -194,9 +194,9 @@ export function VitalsInputForm({
       : null;
 
   return (
-    <div className="mission-panel p-4">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-lg font-semibold">{ui.dailyCheckIn}</h3>
+    <div className="mission-panel p-0">
+      <div className="mission-panel-head flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-base font-semibold">{ui.dailyCheckIn}</h3>
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
@@ -216,6 +216,7 @@ export function VitalsInputForm({
         </div>
       </div>
 
+      <div className="p-4">
       <label htmlFor={fieldId} className="mb-2 block text-sm text-base-content/80">
         {ui.stepOf} {step + 1} {ui.of} {STEP_METRICS.length}: {currentLabel}
         {threshold?.unit && !isMoodStep && currentMetric !== "stressLevel" ? (
@@ -230,7 +231,7 @@ export function VitalsInputForm({
       />
 
       {guide && (
-        <div className="mb-4 rounded-box border border-base-300 bg-base-100/80 p-3 text-sm text-base-content/85">
+        <div className="mission-form-well mb-4">
           <p className="font-medium text-base-content">{ui.howToMeasure}</p>
           <p className="mt-1">{guide.howTo}</p>
           <p className="mt-2 font-medium text-base-content">{ui.whyInSpace}</p>
@@ -276,7 +277,7 @@ export function VitalsInputForm({
             />
             <p
               id={stressOutputId}
-              className="text-center text-lg font-semibold"
+              className="mission-readout text-center text-lg font-semibold"
               aria-live="polite"
             >
               <span className="sr-only">{ui.stressValueLabel}: </span>
@@ -336,6 +337,7 @@ export function VitalsInputForm({
           </button>
         )}
       </div>
+      </div>
     </div>
   );
 }
@@ -375,7 +377,7 @@ function NumericVitalInput({
               ? 0.1
               : 1
           }
-          className="input input-bordered w-full flex-1"
+          className="input input-bordered mission-input flex-1"
           value={numericValue}
           onChange={(e) => onChange(currentMetric, Number(e.target.value))}
         />

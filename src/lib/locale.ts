@@ -699,6 +699,14 @@ export const UI_STRINGS = {
     dayEventsLabel: "Eventos del día",
     measuredAtEnvironment: "Entorno de la medición",
     intradayChartHint: "Variación intradía (muestras cada ~60 min, hora UTC)",
+    sectorsUpdatedEnvironment:
+      "Entorno actualizado. Los sectores que cambiaron brillan un momento.",
+    sectorsUpdatedCrew:
+      "Tripulante actualizado. Los sectores de la misión se refrescaron.",
+    sectorsUpdatedScenario:
+      "Escenario actualizado. Los sectores afectados se refrescaron.",
+    sectorsUpdatedBaseline:
+      "Línea base restaurada. Los sectores de la misión se refrescaron.",
     replayModeBanner:
       "Modo revisión histórica — las simulaciones están bloqueadas hasta volver al presente.",
     returnToNow: "Volver al presente",
@@ -846,6 +854,11 @@ export const UI_STRINGS = {
     dayEventsLabel: "Day events",
     measuredAtEnvironment: "Measurement environment",
     intradayChartHint: "Intraday trend (~60 min samples, UTC time axis)",
+    sectorsUpdatedEnvironment:
+      "Environment updated. Sectors that changed glow for a moment.",
+    sectorsUpdatedCrew: "Crew member updated. Mission sectors were refreshed.",
+    sectorsUpdatedScenario: "Scenario updated. Affected sectors were refreshed.",
+    sectorsUpdatedBaseline: "Baseline restored. Mission sectors were refreshed.",
     replayModeBanner:
       "Historical review mode — simulations stay locked until you return to now.",
     returnToNow: "Return to now",

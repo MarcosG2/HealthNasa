@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MuscleId } from "@emmorts/body-muscles";
 import { NASA_HAZARDS_KNOWLEDGE } from "@/data/nasaKnowledge";
 import {
@@ -27,9 +27,17 @@ const REGION_IDS: RegionId[] = [
 interface BodyMapProps {
   systemStatuses: SystemStatusEntry[];
   locale?: AppLocale;
+  /** Increments when mission environment, crew, or scenarios refresh. */
+  refreshToken?: number;
 }
 
-export function BodyMap({ systemStatuses, locale = "es" }: BodyMapProps) {
+type SectorFlash = "refreshed" | HealthStatus;
+
+export function BodyMap({
+  systemStatuses,
+  locale = "es",
+  refreshToken = 0,
+}: BodyMapProps) {
   const ui = UI_STRINGS[locale];
   const regions = BODY_REGION_COPY[locale];
 
@@ -40,6 +48,41 @@ export function BodyMap({ systemStatuses, locale = "es" }: BodyMapProps) {
   }, [systemStatuses]);
 
   const [selected, setSelected] = useState<RegionId>("cardiovascular");
+  const [flashes, setFlashes] = useState<Map<RegionId, SectorFlash>>(new Map());
+  const prevStatusRef = useRef<Map<RegionId, HealthStatus> | null>(null);
+  const seenTokenRef = useRef(0);
+  const mountedAtRef = useRef(0);
+
+  useEffect(() => {
+    mountedAtRef.current = performance.now();
+  }, []);
+
+  useEffect(() => {
+    const next = new Map<RegionId, HealthStatus>();
+    for (const entry of systemStatuses) next.set(entry.system, entry.status);
+
+    const prev = prevStatusRef.current;
+    const tokenChanged = refreshToken !== seenTokenRef.current;
+    seenTokenRef.current = refreshToken;
+    prevStatusRef.current = next;
+
+    const warmedUp = performance.now() - mountedAtRef.current > 1500;
+    if (!prev || (!tokenChanged && !warmedUp)) return;
+
+    const nextFlashes = new Map<RegionId, SectorFlash>();
+    for (const id of REGION_IDS) {
+      const status = next.get(id) ?? "normal";
+      const previous = prev.get(id);
+      const changed = previous !== undefined && previous !== status;
+      if (changed) nextFlashes.set(id, status);
+      else if (tokenChanged) nextFlashes.set(id, "refreshed");
+    }
+    if (nextFlashes.size === 0) return;
+
+    setFlashes(nextFlashes);
+    const timer = window.setTimeout(() => setFlashes(new Map()), 1200);
+    return () => window.clearTimeout(timer);
+  }, [systemStatuses, refreshToken]);
   const regionCopy = regions[selected];
   const status = statusBySystem.get(selected) ?? "normal";
   const styles = statusStyles(status);
@@ -102,9 +145,10 @@ export function BodyMap({ systemStatuses, locale = "es" }: BodyMapProps) {
                 }`}
                 onClick={() => selectRegion(id)}
                 onKeyDown={(e) => onRegionKeyDown(e, id)}
+                data-flash={flashes.get(id)}
                 className={`btn btn-xs sm:btn-sm gap-2 ${
                   isSelected
-                    ? `btn-primary ring-2 ring-offset-2 ring-offset-base-200 ${stStyles.ring}`
+                    ? `btn-primary ring-2 ring-offset-2 ring-offset-base-100 ${stStyles.ring}`
                     : "btn-outline"
                 }`}
               >
@@ -127,6 +171,7 @@ export function BodyMap({ systemStatuses, locale = "es" }: BodyMapProps) {
       </div>
 
       <div
+        data-flash={flashes.get(selected)}
         className={`mission-panel p-4 ring-2 ${styles.ring} ${styles.bg}`}
         aria-live="polite"
       >
@@ -138,7 +183,7 @@ export function BodyMap({ systemStatuses, locale = "es" }: BodyMapProps) {
           </span>
         </div>
         <p className="mt-2 text-sm text-base-content/85">{regionCopy.summary}</p>
-        <p className="mt-3 text-xs font-medium uppercase tracking-wide text-base-content/70">
+        <p className="mt-3 text-xs font-medium text-base-content/70">
           {ui.relatedHazards}
         </p>
         <ul className="mt-2 space-y-4 text-sm text-base-content/85">

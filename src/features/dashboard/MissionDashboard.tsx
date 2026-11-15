@@ -178,6 +178,9 @@ export function MissionDashboard() {
     useState<MissionTelemetryArchive | null>(null);
   const [archiveLoading, setArchiveLoading] = useState(false);
   const [archiveLoaded, setArchiveLoaded] = useState(false);
+  const [refreshToken, setRefreshToken] = useState(0);
+  const [pulseOn, setPulseOn] = useState(false);
+  const [updateNote, setUpdateNote] = useState("");
   const baselineLoadSeq = useRef(0);
   const bodyTrackerAnchorRef = useRef<HTMLElement | null>(null);
   const simControlsLocked = replayFocus !== null;
@@ -282,10 +285,10 @@ export function MissionDashboard() {
   async function restoreBaselineFromFeed(
     astronautId = selectedAstronautId,
     env: MissionEnvironment = environment
-  ) {
+  ): Promise<boolean> {
     const seq = ++baselineLoadSeq.current;
     const feed = await fetchMissionFeed(env, 14, astronautId);
-    if (seq !== baselineLoadSeq.current) return;
+    if (seq !== baselineLoadSeq.current) return false;
 
     if (feed?.telemetry?.length) {
       const telemetry = feed.telemetry.map((row) => ({ ...row, environment: env }));
@@ -295,12 +298,30 @@ export function MissionDashboard() {
       setMockFeedLabel(
         `${feed.crew.callSign} · ${feed.crew.agency} · ${feed.source}`
       );
-      return;
+      return true;
     }
     const baseline = buildMockMissionHistory(env);
     setBaselineHistory(baseline);
     setEnvironment(env);
     saveMissionLogs(baseline);
+    return true;
+  }
+
+  type RefreshReason = "environment" | "crew" | "scenario" | "baseline";
+
+  function signalRefresh(reason: RefreshReason) {
+    const note =
+      reason === "environment"
+        ? ui.sectorsUpdatedEnvironment
+        : reason === "crew"
+          ? ui.sectorsUpdatedCrew
+          : reason === "scenario"
+            ? ui.sectorsUpdatedScenario
+            : ui.sectorsUpdatedBaseline;
+    setUpdateNote(note);
+    setPulseOn(false);
+    setRefreshToken((n) => n + 1);
+    requestAnimationFrame(() => setPulseOn(true));
   }
 
   function resetChartScales() {
@@ -339,14 +360,15 @@ export function MissionDashboard() {
     }
   }
 
-  function resetBaseline() {
+  async function resetBaseline() {
     if (simControlsLocked) return;
     setActiveScenarios([]);
     saveActiveScenarios([]);
     setReplayFocus(null);
     resetChartScales();
     setArchiveLoaded(false);
-    void restoreBaselineFromFeed();
+    const ok = await restoreBaselineFromFeed();
+    if (ok) signalRefresh("baseline");
   }
 
   function toggleScenario(scenarioId: MissionScenarioId) {
@@ -358,6 +380,7 @@ export function MissionDashboard() {
       saveActiveScenarios(next);
       return next;
     });
+    signalRefresh("scenario");
   }
 
   async function onSelectAstronaut(astronautId: string) {
@@ -369,20 +392,22 @@ export function MissionDashboard() {
     setReplayFocus(null);
     resetChartScales();
     setArchiveLoaded(false);
-    await restoreBaselineFromFeed(astronautId);
+    const ok = await restoreBaselineFromFeed(astronautId);
+    if (ok) signalRefresh("crew");
   }
 
   function toggleLocale() {
     setLocale((l) => (l === "es" ? "en" : "es"));
   }
 
-  function onSelectEnvironment(env: MissionEnvironment) {
+  async function onSelectEnvironment(env: MissionEnvironment) {
     if (simControlsLocked || env === environment) return;
     setEnvironment(env);
     setReplayFocus(null);
     resetChartScales();
     setArchiveLoaded(false);
-    void restoreBaselineFromFeed(selectedAstronautId, env);
+    const ok = await restoreBaselineFromFeed(selectedAstronautId, env);
+    if (ok) signalRefresh("environment");
   }
 
   function returnToLiveNow() {
@@ -469,6 +494,7 @@ export function MissionDashboard() {
       setMockFeedLabel(
         `${archive.meta.missionDays}d layered telemetry · hot ${archive.meta.hotWindowHours}h`
       );
+      signalRefresh("baseline");
     } finally {
       setArchiveLoading(false);
     }
@@ -479,17 +505,20 @@ export function MissionDashboard() {
   const envLabel = ENVIRONMENT_LABELS[locale][focusReading.environment];
 
   return (
-    <div className="mission-shell">
+    <div className={`mission-shell${pulseOn ? " mission-refresh" : ""}`}>
       <a href="#main-content" className="skip-link">
         {ui.skipToMain}
       </a>
+      <p className="sr-only" role="status" aria-live="polite">
+        {updateNote}
+      </p>
 
       <header className="mission-command">
-        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="flex min-w-0 items-start gap-3">
-              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-box border border-primary/40 bg-primary/10">
-                <Rocket className="h-6 w-6 text-primary" aria-hidden />
+        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-3 py-3 sm:px-6 sm:py-4 lg:px-8">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex min-w-0 flex-1 items-start gap-3">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center border border-primary/50 bg-base-100">
+                <Rocket className="h-5 w-5 text-primary" aria-hidden />
               </span>
               <div className="min-w-0">
                 <h1 className="text-xl font-bold tracking-tight sm:text-2xl">{ui.appTitle}</h1>
@@ -497,47 +526,44 @@ export function MissionDashboard() {
               </div>
             </div>
 
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch lg:max-w-xl">
-              <button
-                type="button"
-                onClick={toggleLocale}
-                className="btn btn-sm btn-ghost order-2 gap-2 border border-base-300/60 sm:order-1 sm:self-start"
-                aria-label={
-                  locale === "es" ? "Cambiar idioma a inglés" : "Switch language to Spanish"
-                }
-              >
-                <Languages className="h-4 w-4" aria-hidden />
-                {ui.switchToEnglish}
-              </button>
-              <div
-                role="status"
-                aria-live="polite"
-                aria-atomic="true"
-                aria-label={ui.crewStatusLive}
-                className={`mission-panel order-1 flex flex-1 gap-3 p-3 ring-1 sm:order-2 ${overallStyles.ring} ${overallStyles.bg}`}
-              >
-                <Radio className={`mt-0.5 h-5 w-5 shrink-0 ${overallStyles.text}`} aria-hidden />
-                <div className="min-w-0">
-                  <p className="text-sm font-medium leading-snug text-base-content">
-                    {evaluation.headline}
-                  </p>
-                  <p
-                    className={`mt-1 text-xs font-semibold uppercase tracking-wide ${overallStyles.text}`}
-                  >
-                    {statusLabelForLocale(locale, evaluation.overallStatus)}
-                  </p>
-                </div>
-                <p className="mission-readout ml-auto hidden self-center text-right text-xs sm:block">
-                  {replayFocus ? `${ui.crewStatusReview} — ` : ""}
-                  {ui.missionDay} {focusReading.missionDay}
-                </p>
-              </div>
+            <button
+              type="button"
+              onClick={toggleLocale}
+              className="btn btn-sm btn-ghost shrink-0 gap-2 self-start border border-base-300/60"
+              aria-label={
+                locale === "es" ? "Cambiar idioma a inglés" : "Switch language to Spanish"
+              }
+            >
+              <Languages className="h-4 w-4" aria-hidden />
+              {ui.switchToEnglish}
+            </button>
+          </div>
+
+          <div
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+            aria-label={ui.crewStatusLive}
+            className={`mission-panel flex gap-3 p-3 ring-1 ${overallStyles.ring} ${overallStyles.bg}`}
+          >
+            <Radio className={`mt-0.5 h-5 w-5 shrink-0 ${overallStyles.text}`} aria-hidden />
+            <div className="min-w-0">
+              <p className="text-sm font-medium leading-snug text-base-content">
+                {evaluation.headline}
+              </p>
+              <p className={`mt-1 text-xs font-semibold ${overallStyles.text}`}>
+                {statusLabelForLocale(locale, evaluation.overallStatus)}
+              </p>
             </div>
+            <p className="mission-readout ml-auto hidden self-center text-right text-xs sm:block">
+              {replayFocus ? `${ui.crewStatusReview} — ` : ""}
+              {ui.missionDay} {focusReading.missionDay}
+            </p>
           </div>
 
           <dl
             aria-label={ui.artemisProfile}
-            className="grid gap-px overflow-hidden rounded-box border border-base-300/70 bg-base-300/50 sm:grid-cols-3"
+            className="mission-sector mission-telemetry-rail rounded-box"
           >
             <TelemetryField icon={Users} label={ui.artemisProfile}>
               <p className="font-medium text-base-content">
@@ -569,11 +595,11 @@ export function MissionDashboard() {
           </dl>
 
           <div className="grid gap-3 lg:grid-cols-2">
-            <p className="rounded-field border border-base-300/60 bg-base-100/40 px-4 py-3 text-sm leading-relaxed text-base-content/85">
+            <p className="mission-sector mission-strip rounded-field">
               <span className="font-medium text-base-content">{ui.whyAutonomous}. </span>
               {envMeta.autonomyNote}
             </p>
-            <div className="rounded-field border border-base-300/60 bg-base-100/40 px-4 py-3 text-sm leading-relaxed text-base-content/85">
+            <div className="mission-sector mission-strip rounded-field">
               <p className="font-medium text-base-content">{ui.environmentBrief}</p>
               <p className="mt-1">
                 <span className="text-base-content/70">{ui.habitatLabel}: </span>
@@ -591,13 +617,13 @@ export function MissionDashboard() {
       <main
         id="main-content"
         tabIndex={-1}
-        className="mx-auto max-w-7xl space-y-10 px-4 py-8 sm:px-6 lg:px-8"
+        className="mx-auto max-w-7xl space-y-0 px-3 py-6 sm:px-6 sm:py-8 lg:px-8"
       >
         {replayFocus ? (
           <section
             ref={bodyTrackerAnchorRef}
             aria-labelledby="body-replay-heading"
-            className="mission-panel sticky top-2 z-20 scroll-mt-4 border border-primary/40 bg-base-100/95 p-4 shadow-lg backdrop-blur-sm"
+            className="mission-panel sticky top-2 z-20 scroll-mt-4 border border-primary/45 bg-base-100/95 p-4"
           >
             <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
@@ -613,7 +639,7 @@ export function MissionDashboard() {
               </div>
               <div className="flex flex-col items-stretch gap-2 sm:items-end">
                 <p
-                  className={`rounded-field px-3 py-2 text-xs font-semibold uppercase ${overallStyles.bg} ${overallStyles.text}`}
+                  className={`rounded-field border border-base-300/60 px-3 py-2 text-xs font-semibold ${overallStyles.bg} ${overallStyles.text}`}
                   role="status"
                 >
                   {statusLabelForLocale(locale, evaluation.overallStatus)}
@@ -628,11 +654,15 @@ export function MissionDashboard() {
                 </button>
               </div>
             </div>
-            <BodyMap systemStatuses={evaluation.systemStatuses} locale={locale} />
+            <BodyMap
+              systemStatuses={evaluation.systemStatuses}
+              locale={locale}
+              refreshToken={refreshToken}
+            />
           </section>
         ) : null}
 
-        <section aria-labelledby="sim-controls-heading">
+        <section aria-labelledby="sim-controls-heading" className="mission-zone">
           <h2 id="sim-controls-heading" className="sr-only">
             {ui.simulationControls}
           </h2>
@@ -683,8 +713,8 @@ export function MissionDashboard() {
               className="mt-4 space-y-4 rounded-field border-0 p-0 disabled:pointer-events-none disabled:opacity-60"
             >
             <div className="grid gap-4 lg:grid-cols-2">
-              <label className="block max-w-xl">
-                <span className="text-xs font-semibold uppercase tracking-wide text-base-content/65">
+              <label className="mission-sector block max-w-xl rounded-field">
+                <span className="text-xs font-medium text-base-content/70">
                   {ui.crewRoster}
                 </span>
                 <select
@@ -704,12 +734,12 @@ export function MissionDashboard() {
                 </select>
               </label>
 
-              <div>
-                <span className="text-xs font-semibold uppercase tracking-wide text-base-content/65">
+              <div className="mission-sector rounded-field">
+                <span className="text-xs font-medium text-base-content/70">
                   {ui.missionEnvironment}
                 </span>
                 <div
-                  className="mt-1 flex flex-wrap gap-2"
+                  className="mission-horiz-scroll mt-1 flex-wrap sm:flex"
                   role="tablist"
                   aria-label={ui.missionEnvironment}
                 >
@@ -791,9 +821,9 @@ export function MissionDashboard() {
           </div>
         </section>
 
-        <div className="grid gap-8 xl:grid-cols-12">
+        <div className="mission-zone grid min-w-0 gap-6 xl:grid-cols-12 xl:gap-8">
           <section
-            className="space-y-8 xl:col-span-8"
+            className="min-w-0 space-y-6 xl:col-span-8 xl:space-y-8"
             aria-labelledby="body-systems-heading"
           >
             {!replayFocus ? (
@@ -802,7 +832,11 @@ export function MissionDashboard() {
                   <h2 id="body-systems-heading" className="mission-section-title mb-4">
                     {ui.bodyMapTitle}
                   </h2>
-                  <BodyMap systemStatuses={evaluation.systemStatuses} locale={locale} />
+                  <BodyMap
+                    systemStatuses={evaluation.systemStatuses}
+                    locale={locale}
+                    refreshToken={refreshToken}
+                  />
                 </section>
               </MotionReveal>
             ) : null}
@@ -851,7 +885,7 @@ export function MissionDashboard() {
             </MotionReveal>
           </section>
 
-          <aside className="space-y-6 xl:col-span-4 xl:sticky xl:top-6 xl:self-start">
+          <aside className="min-w-0 space-y-6 xl:col-span-4 xl:sticky xl:top-6 xl:max-h-[calc(100vh-2rem)] xl:self-start xl:overflow-y-auto">
             <MotionReveal>
               <h2 className="mission-section-title mb-4">{ui.recommendedActions}</h2>
               <ul className="space-y-3">
@@ -917,7 +951,7 @@ export function MissionDashboard() {
         </div>
       </main>
 
-      <footer className="border-t border-base-300/60 bg-base-200/50">
+      <footer className="border-t border-base-300/80 bg-base-100/90">
         <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
           <p className="text-sm font-medium text-base-content">{ui.officialReferences}</p>
           <ul className="mt-3 flex flex-col gap-2 text-sm sm:flex-row sm:flex-wrap sm:gap-x-6 sm:gap-y-2">
@@ -973,12 +1007,12 @@ function TelemetryField({
   children: ReactNode;
 }) {
   return (
-    <div className="bg-base-200/80 px-4 py-3">
-      <dt className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-base-content/65">
+    <div className="mission-telemetry-cell">
+      <dt className="mission-field-tab">
         <Icon className="h-3.5 w-3.5 text-primary" aria-hidden />
         {label}
       </dt>
-      <dd className="mt-2 space-y-0.5 text-sm text-base-content/90">{children}</dd>
+      <dd className="space-y-0.5 text-sm text-base-content/90">{children}</dd>
     </div>
   );
 }
@@ -1049,7 +1083,7 @@ function ScenarioButton({
       <span className="text-left">
         <span className="block leading-tight">{label}</span>
         <span
-          className={`mt-0.5 block text-[10px] font-semibold uppercase tracking-wide ${
+          className={`mt-0.5 block text-[10px] font-medium ${
             isOn ? "text-current" : "text-base-content/50"
           }`}
         >
@@ -1067,7 +1101,5 @@ function ScenarioButton({
 }
 
 function MotionReveal({ children }: { children: ReactNode }) {
-  return (
-    <div className="animate-[reveal_0.55s_cubic-bezier(0.16,1,0.3,1)_both]">{children}</div>
-  );
+  return <>{children}</>;
 }

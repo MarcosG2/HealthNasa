@@ -1,3 +1,4 @@
+/* Impeccable · mission console · Hallmark checked: app screen · theme: void telemetry · v1 */
 @import "tailwindcss";
 
 @plugin "daisyui" {
@@ -9,10 +10,10 @@
   default: true;
   prefersdark: true;
   color-scheme: dark;
-  --color-base-100: oklch(16% 0.022 255);
-  --color-base-200: oklch(21% 0.028 255);
-  --color-base-300: oklch(30% 0.032 255);
-  --color-base-content: oklch(94% 0.014 255);
+  --color-base-100: oklch(11% 0.016 255);
+  --color-base-200: oklch(14% 0.02 255);
+  --color-base-300: oklch(27% 0.028 255);
+  --color-base-content: oklch(93% 0.012 255);
   --color-primary: oklch(78% 0.155 215);
   --color-primary-content: oklch(16% 0.04 215);
   --color-secondary: oklch(65% 0.08 264);
@@ -29,9 +30,9 @@
   --color-warning-content: oklch(22% 0.04 85);
   --color-error: oklch(68% 0.18 15);
   --color-error-content: oklch(98% 0.01 15);
-  --radius-selector: 0.5rem;
-  --radius-field: 0.5rem;
-  --radius-box: 0.75rem;
+  --radius-selector: 0.25rem;
+  --radius-field: 0.25rem;
+  --radius-box: 0.25rem;
 }
 
 @theme inline {
@@ -60,11 +61,6 @@
 
   body {
     @apply min-h-full bg-base-100 font-sans text-base text-base-content antialiased;
-    background-image: radial-gradient(
-      ellipse 120% 80% at 50% -20%,
-      oklch(32% 0.06 215 / 0.22),
-      transparent 55%
-    );
   }
 
   ::selection {
@@ -123,18 +119,24 @@
 
 @utility mission-shell {
   @apply relative min-h-screen text-base-content;
+  background-color: oklch(11% 0.016 255);
+  background-image:
+    linear-gradient(oklch(27% 0.028 255 / 0.14) 1px, transparent 1px),
+    linear-gradient(90deg, oklch(27% 0.028 255 / 0.14) 1px, transparent 1px);
+  background-size: 24px 24px;
+  background-position: center top;
 }
 
 @utility mission-command {
-  @apply border-b border-base-300/80 bg-base-200/90 backdrop-blur-md;
+  @apply relative z-20 border-b border-base-300/90 bg-base-100/95;
 }
 
 @utility mission-panel {
-  @apply rounded-box border border-base-300/70 bg-base-200/55;
+  @apply rounded-box border border-base-300/80 bg-base-100/45 shadow-none;
 }
 
 @utility mission-panel-head {
-  @apply border-b border-base-300/60 px-4 py-3 text-sm font-semibold tracking-tight text-base-content;
+  @apply border-b border-base-300/70 px-4 py-2.5 text-sm font-semibold text-base-content;
 }
 
 @utility mission-readout {
@@ -142,18 +144,129 @@
 }
 
 @utility mission-section-title {
-  @apply text-base font-semibold tracking-tight text-base-content sm:text-lg;
+  @apply text-base font-semibold text-base-content sm:text-lg;
 }
 
-@keyframes reveal {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-    filter: blur(4px);
+@utility mission-field-tab {
+  @apply mb-2 inline-flex items-center gap-1.5 border-b border-base-300/70 pb-1 text-xs font-medium text-base-content/70;
+}
+
+@utility mission-telemetry-rail {
+  @apply grid grid-cols-1 gap-px border border-base-300/80 bg-base-300/60 sm:grid-cols-3;
+}
+
+@utility mission-telemetry-cell {
+  @apply relative bg-base-100/70 p-4;
+}
+
+@utility mission-strip {
+  @apply border border-base-300/80 bg-base-100/40 px-4 py-3 text-sm leading-relaxed text-base-content/85;
+}
+
+@utility mission-zone {
+  @apply scroll-mt-20 border-t border-base-300/50 pt-8 first:border-t-0 first:pt-0;
+}
+
+@utility mission-chart-well {
+  @apply min-w-0 border border-base-300/70 bg-base-100/35 p-2;
+}
+
+@utility mission-form-well {
+  @apply border border-base-300/80 bg-base-100/50 p-3 text-sm leading-relaxed text-base-content/85;
+}
+
+@utility mission-input {
+  @apply w-full rounded-field border border-base-300/80 bg-base-100/60 px-3 py-2 font-mono text-sm tabular-nums text-base-content;
+}
+
+@utility mission-horiz-scroll {
+  @apply flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden;
+}
+
+@layer base {
+  .recharts-cartesian-grid-horizontal line,
+  .recharts-cartesian-grid-vertical line {
+    stroke: oklch(27% 0.028 255 / 0.55);
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-    filter: blur(0);
+
+  .recharts-default-legend .recharts-legend-item-text {
+    color: oklch(80% 0.02 255) !important;
+    font-size: 11px;
+    font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  }
+}
+
+@layer base {
+  @keyframes sector-glow {
+    0%,
+    100% {
+      box-shadow: 0 0 0 0 oklch(78% 0.155 215 / 0);
+    }
+    32% {
+      box-shadow:
+        0 0 0 1px oklch(78% 0.155 215 / 0.95),
+        0 0 18px 2px oklch(78% 0.155 215 / 0.5);
+    }
+  }
+
+  @keyframes sector-glow-emerald {
+    0%,
+    100% {
+      box-shadow: 0 0 0 0 oklch(72% 0.16 155 / 0);
+    }
+    32% {
+      box-shadow:
+        0 0 0 1px oklch(72% 0.16 155 / 0.95),
+        0 0 18px 2px oklch(72% 0.16 155 / 0.5);
+    }
+  }
+
+  @keyframes sector-glow-amber {
+    0%,
+    100% {
+      box-shadow: 0 0 0 0 oklch(80% 0.14 85 / 0);
+    }
+    32% {
+      box-shadow:
+        0 0 0 1px oklch(80% 0.14 85 / 0.95),
+        0 0 18px 2px oklch(80% 0.14 85 / 0.5);
+    }
+  }
+
+  @keyframes sector-glow-rose {
+    0%,
+    100% {
+      box-shadow: 0 0 0 0 oklch(68% 0.18 15 / 0);
+    }
+    32% {
+      box-shadow:
+        0 0 0 1px oklch(68% 0.18 15 / 0.95),
+        0 0 18px 2px oklch(68% 0.18 15 / 0.55);
+    }
+  }
+
+  /* Brief glow when mission data refreshes. Status colors mark sectors that changed. */
+  .mission-refresh :is(.mission-panel, .mission-sector) {
+    animation: sector-glow 1.15s ease-out;
+  }
+
+  .mission-refresh [data-flash="refreshed"],
+  [data-flash="refreshed"] {
+    animation: sector-glow 1.15s ease-out;
+  }
+
+  .mission-refresh [data-flash="normal"],
+  [data-flash="normal"] {
+    animation: sector-glow-emerald 1.15s ease-out;
+  }
+
+  .mission-refresh [data-flash="warning"],
+  [data-flash="warning"] {
+    animation: sector-glow-amber 1.15s ease-out;
+  }
+
+  .mission-refresh [data-flash="critical"],
+  [data-flash="critical"] {
+    animation: sector-glow-rose 1.15s ease-out;
   }
 }

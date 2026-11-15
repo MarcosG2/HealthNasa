@@ -166,19 +166,20 @@ export function MissionRoutinePanel({
 
   const targetColor =
     reactionPhase === "go"
-      ? "bg-emerald-500 border-emerald-300"
+      ? "border-success bg-success/25 text-success"
       : reactionPhase === "waiting"
-        ? "bg-amber-500/40 border-amber-400"
-        : "bg-slate-700 border-slate-600";
+        ? "border-warning bg-warning/15 text-warning"
+        : "border-base-300 bg-base-200/80 text-base-content/80";
 
   return (
-    <div className="mission-panel p-4">
-      <div className="flex items-center justify-between text-sm text-base-content/80">
-        <span>{ui.readinessPoints}</span>
-        <span className="font-medium text-success">{points}</span>
+    <div className="mission-panel p-0">
+      <div className="mission-panel-head flex items-center justify-between gap-2 text-sm">
+        <span className="text-base-content/80">{ui.readinessPoints}</span>
+        <span className="mission-readout text-success">{points}</span>
       </div>
+      <div className="p-4">
       <progress
-        className="progress progress-success mt-2 w-full"
+        className="progress progress-success mt-0 w-full"
         value={progressPct}
         max={100}
         aria-label={`${ui.readinessPoints}: ${completedCount} ${ui.of} ${CHECKLIST_IDS.length}`}
@@ -200,9 +201,9 @@ export function MissionRoutinePanel({
         ))}
       </ul>
 
-      <div className="divider my-6" />
+      <div className="divider my-6 opacity-40" />
 
-      <h4 className="flex items-center gap-2 text-base font-semibold">
+      <h4 className="flex items-center gap-2 text-sm font-semibold">
         <Zap className="h-4 w-4 text-primary" aria-hidden />
         {ui.reactionTest}
       </h4>
@@ -219,7 +220,7 @@ export function MissionRoutinePanel({
             aria-label={
               reactionPhase === "waiting" ? ui.reactionWait : ui.reactionTap
             }
-            className={`btn flex h-20 w-20 min-h-20 items-center justify-center rounded-box border-2 text-xs ${targetColor}`}
+            className={`btn flex h-20 w-20 min-h-20 items-center justify-center rounded-box border-2 font-medium text-xs ${targetColor}`}
           >
             {reactionPhase === "waiting"
               ? ui.reactionWait
@@ -232,10 +233,12 @@ export function MissionRoutinePanel({
           </span>
         )}
         {reactionAvg !== null && (
-          <p className="text-sm" role="status" aria-live="polite">
-            {ui.reactionResult}: <strong>{reactionAvg}</strong>
+          <p className="text-sm text-base-content/85" role="status" aria-live="polite">
+            {ui.reactionResult}:{" "}
+            <span className="mission-readout font-semibold">{reactionAvg}</span>
           </p>
         )}
+      </div>
       </div>
     </div>
   );
