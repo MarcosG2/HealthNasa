@@ -1083,15 +1083,15 @@ function ScenarioButton({
       onClick={onClick}
       aria-pressed={isOn}
       disabled={disabled}
-      className={`btn btn-sm gap-2 border font-normal ${
+      className={`btn btn-sm h-auto min-h-0 gap-2.5 border px-3.5 py-2.5 font-normal ${
         isOn ? toneClasses.active : toneClasses.idle
       }`}
     >
-      <Icon className="h-4 w-4 shrink-0" aria-hidden />
+      <Icon className="h-4 w-4 shrink-0 self-center" aria-hidden />
       <span className="text-left">
-        <span className="block leading-tight">{label}</span>
+        <span className="block leading-snug">{label}</span>
         <span
-          className={`mt-0.5 block text-[10px] font-medium ${
+          className={`mt-1 block text-[10px] font-medium ${
             isOn ? "text-current" : "text-base-content/50"
           }`}
         >

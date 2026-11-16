@@ -268,6 +268,7 @@ export function HealthCharts({
       <ChartPanel
         title={ui.chartCardio}
         hint={hintForCardio(ui, cardioScale, cardio.rows.length === 0)}
+        hasData={cardio.rows.length > 0}
         chartKey={`cardio-${cardioScale}-${effectiveCardioDay}-${cardio.rows.length}`}
         scaleGroupLabel={ui.chartTimeScale}
         scales={
@@ -384,6 +385,7 @@ export function HealthCharts({
       <ChartPanel
         title={ui.chartRecovery}
         hint={hintForRecovery(ui, recoveryScale, recovery.rows.length === 0)}
+        hasData={recovery.rows.length > 0}
         chartKey={`recovery-${recoveryScale}-${recovery.rows.length}`}
         scaleGroupLabel={ui.chartTimeScale}
         scales={
@@ -490,6 +492,7 @@ export function HealthCharts({
       <ChartPanel
         title={ui.chartRadiation}
         hint={hintForRadiation(ui, radiationScale)}
+        hasData={radiation.rows.length > 0}
         chartKey={`radiation-${radiationScale}-${effectiveRadiationDay}-${radiation.rows.length}`}
         scaleGroupLabel={ui.chartTimeScale}
         scales={
@@ -635,6 +638,7 @@ interface MissionDayPickerConfig {
 function ChartPanel<S extends string>({
   title,
   hint,
+  hasData,
   chartKey,
   scaleGroupLabel,
   scales,
@@ -645,6 +649,7 @@ function ChartPanel<S extends string>({
 }: {
   title: string;
   hint: string;
+  hasData: boolean;
   chartKey: string;
   scaleGroupLabel: string;
   scales: readonly (readonly [S, string])[];
@@ -653,7 +658,6 @@ function ChartPanel<S extends string>({
   missionDayPicker?: MissionDayPickerConfig;
   children: ReactElement | ReactNode;
 }) {
-  const isChart = typeof children === "object" && children !== null && "type" in (children as object);
   return (
     <div className="mission-panel space-y-3 p-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
@@ -692,7 +696,7 @@ function ChartPanel<S extends string>({
           </div>
         </div>
       </div>
-      {isChart ? (
+      {hasData ? (
         <ChartContainer key={chartKey}>{children as ReactElement}</ChartContainer>
       ) : (
         children

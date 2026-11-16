@@ -7,7 +7,7 @@
 - **Mission dashboard** — crew profile, communication latency, and environment-specific hazards
 - **Body map** — status by body system with linked NASA hazard education
 - **Mission timeline charts** — 14-day cardiovascular, recovery, and radiation trends
-- **Vitals check-in** — guided daily log with optional camera/ultrasound attachment
+- **Crew wellness** — cognitive/mental check-in, daily countermeasure checklist, and reaction-time drill
 - **Rules engine** — `evaluateHealth()` with escalation: self-care → crew → ground flight surgeon
 - **Mission scenarios** — solar particles, cardio/dehydration, isolation (stackable simulations)
 
@@ -39,7 +39,7 @@ npm run lint     # ESLint
 | Dashboard shell | `src/features/dashboard/` |
 | Body map | `src/features/body-map/` |
 | Charts | `src/features/timeline/` |
-| Vitals form | `src/features/vitals-form/` |
+| Wellness & routines | `src/features/vitals-form/` |
 | Offline evaluator | `src/features/rules-engine/evaluateHealth.ts` |
 | Shared health types | `src/types/health.ts` |
 | HRP copy & thresholds | `src/data/nasaKnowledge.ts` |
