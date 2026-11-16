@@ -7,10 +7,7 @@ import type {
   VitalReadings,
 } from "@/types/health";
 
-const ARCHIVE_URLS = [
-  "/data/mission-telemetry-60d.json",
-  "/data/mission-telemetry-30d.json",
-] as const;
+const ARCHIVE_URLS = ["/data/mission-telemetry-30d.json"] as const;
 
 export async function fetchMissionTelemetryArchive(): Promise<MissionTelemetryArchive | null> {
   if (typeof window === "undefined") return null;

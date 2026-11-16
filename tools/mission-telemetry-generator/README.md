@@ -27,7 +27,7 @@ npm run generate:telemetry -- --days 7 --output public/data/mission-telemetry-7d
 npm run generate:telemetry -- --interval-sec 5 --seed my-run-2
 ```
 
-Output default: `public/data/mission-telemetry-60d.json` (served at `/data/mission-telemetry-60d.json`; the app falls back to `mission-telemetry-30d.json` if present).
+Output default: `public/data/mission-telemetry-30d.json` (served at `/data/mission-telemetry-30d.json`).
 
 ## Real-time simulation
 

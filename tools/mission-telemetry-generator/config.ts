@@ -15,7 +15,7 @@ export interface GeneratorConfig {
 }
 
 export const DEFAULT_CONFIG: GeneratorConfig = {
-  missionDays: 60,
+  missionDays: 30,
   sampleIntervalSec: 5,
   hotWindowHours: 24,
   missionStartIso: "2026-11-01T00:00:00.000Z",
@@ -48,7 +48,7 @@ export const DEFAULT_CONFIG: GeneratorConfig = {
       label: "cardio_alert",
     },
     {
-      missionDay: 38,
+      missionDay: 26,
       utcHour: 1,
       utcMinute: 0,
       durationMinutes: 300,
@@ -57,5 +57,5 @@ export const DEFAULT_CONFIG: GeneratorConfig = {
       label: "isolation_insomnia",
     },
   ],
-  outputPath: "public/data/mission-telemetry-60d.json",
+  outputPath: "public/data/mission-telemetry-30d.json",
 };

@@ -278,7 +278,7 @@ function transformRollupBucket(
 }
 
 /**
- * Non-destructive view of the layered 60-day archive — base JSON stays on disk unchanged.
+ * Non-destructive view of the layered 30-day archive — base JSON stays on disk unchanged.
  */
 export function applyArchetypeToMissionArchive(
   archive: MissionTelemetryArchive,
