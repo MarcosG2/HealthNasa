@@ -565,7 +565,7 @@ export const UI_STRINGS = {
     metaDescription:
       "Monitoreo de salud del astronauta sin conexión para misiones espaciales.",
     appTitle: "Control de salud de misión",
-    appSubtitle: "NASA Space Apps — monitoreo del astronauta (offline-first)",
+    appSubtitle: "NASA Space Apps — monitoreo del astronauta",
     switchToEnglish: "English",
     simulateCritical: "Simular escenario crítico",
     simulateSolarEvent: "Evento de partículas solares",
@@ -744,7 +744,7 @@ export const UI_STRINGS = {
     metaDescription:
       "Offline-first astronaut health monitoring for space missions.",
     appTitle: "Mission Health Control",
-    appSubtitle: "NASA Space Apps — astronaut monitoring (offline-first)",
+    appSubtitle: "NASA Space Apps — astronaut monitoring",
     switchToEnglish: "Español",
     simulateCritical: "Simulate critical scenario",
     simulateSolarEvent: "Solar particle event",
