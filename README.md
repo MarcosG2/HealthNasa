@@ -79,19 +79,15 @@ The team reviewed, integrated, and tested all submissions. Thresholds and escala
 - [CSA — Monitoring radiation & astronaut health](https://www.asc-csa.gc.ca/eng/news/articles/2026/2026-02-26-monitoring-radiation-astronaut-health.asp)
 - [CSA — Science on the ISS](https://www.asc-csa.gc.ca/eng/iss/science/why-do-we-conduct-science-experiments-in-space.asp)
 
-## Public links (judging)
+## Public links 
 
 | Resource | URL |
 |----------|-----|
-| **Live demo** | _Add your Vercel/Render URL before submit_ |
+| **Live demo** | https://healthnasa.vercel.app/ |
 | **Source code** | [github.com/MarcosG2/HealthNasa](https://github.com/MarcosG2/HealthNasa) |
-| **Presentation (7 slides, PDF)** | _Add Google Drive or GitHub release link (Anyone with the link — Viewer)_ |
+| **Presentation (7 slides, PDF)** |https://drive.google.com/drive/folders/19A_LKwtms3NoYbWPN6110Yi1xnV4bgNr?usp=sharing |
 
-**Pre-submit checklist**
 
-1. Open the **live demo** and **slides** links in a private/incognito window and confirm they load without login.
-2. For a new deploy URL, request [FortiGuard Web Filter Classification](https://www.fortiguard.com/faq/wf-req) (category: **Web-based Application** or **Education**; company: **N/A** if applicable).
-3. Enter the same URLs in the Space Apps judging form.
 
 ## License
 
