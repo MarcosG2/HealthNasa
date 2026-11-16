@@ -50,6 +50,7 @@ import { fetchDonkiFlares } from "@/lib/fetchDonkiFlares";
 import { applyDonkiFlaresToDailyHistory } from "@/lib/donki/applyFlaresToHistory";
 import { SolarFlareAlertCard } from "@/features/dashboard/SolarFlareAlertCard";
 import type { DonkiFlareFeedResponse } from "@/types/health";
+import { applyArchetypeToMissionArchive } from "@/lib/archetypeTelemetryTransform";
 import { fetchMissionTelemetryArchive } from "@/lib/telemetryArchive";
 import type { MissionTelemetryArchive } from "@/types/health";
 import { mergeActiveScenarios } from "@/lib/mergeMissionScenarios";
@@ -285,6 +286,22 @@ export function MissionDashboard() {
   const selectedAstronaut =
     roster.find((a) => a.id === selectedAstronautId) ?? roster[0];
 
+  const archetypeViewArchive = useMemo(() => {
+    if (!telemetryArchive || !selectedAstronaut) return null;
+    return applyArchetypeToMissionArchive(
+      telemetryArchive,
+      selectedAstronaut.archetype,
+      selectedAstronaut.typicalScenarios
+    );
+  }, [
+    telemetryArchive,
+    selectedAstronaut?.id,
+    selectedAstronaut?.archetype,
+    selectedAstronaut?.typicalScenarios,
+  ]);
+
+  const chartTelemetryArchive = archiveLoaded ? archetypeViewArchive : null;
+
   async function restoreBaselineFromFeed(
     astronautId = selectedAstronautId,
     env: MissionEnvironment = environment
@@ -394,6 +411,20 @@ export function MissionDashboard() {
     saveActiveScenarios([]);
     setReplayFocus(null);
     resetChartScales();
+
+    const astronaut = roster.find((a) => a.id === astronautId);
+    if (archiveLoaded && telemetryArchive && astronaut) {
+      const view = applyArchetypeToMissionArchive(
+        telemetryArchive,
+        astronaut.archetype,
+        astronaut.typicalScenarios
+      );
+      setBaselineHistory(view.daily);
+      saveMissionLogs(view.daily);
+      signalRefresh("crew");
+      return;
+    }
+
     setArchiveLoaded(false);
     const ok = await restoreBaselineFromFeed(astronautId);
     if (ok) signalRefresh("crew");
@@ -486,13 +517,21 @@ export function MissionDashboard() {
         return;
       }
       setTelemetryArchive(archive);
+      const view =
+        selectedAstronaut
+          ? applyArchetypeToMissionArchive(
+              archive,
+              selectedAstronaut.archetype,
+              selectedAstronaut.typicalScenarios
+            )
+          : archive;
       setActiveScenarios([]);
       saveActiveScenarios([]);
       setReplayFocus(null);
       resetChartScales();
-      setBaselineHistory(archive.daily);
+      setBaselineHistory(view.daily);
       setEnvironment(archive.meta.environment);
-      saveMissionLogs(archive.daily);
+      saveMissionLogs(view.daily);
       setArchiveLoaded(true);
       setMockFeedLabel(
         `${archive.meta.missionDays}d layered telemetry · hot ${archive.meta.hotWindowHours}h`
@@ -866,8 +905,8 @@ export function MissionDashboard() {
                 missionDayOptions={missionDayOptions}
                 focusHourUtc={timelineFocusHour}
                 latestMissionDay={
-                  telemetryArchive?.daily[telemetryArchive.daily.length - 1]?.missionDay ??
-                  latest.missionDay
+                  chartTelemetryArchive?.daily[chartTelemetryArchive.daily.length - 1]
+                    ?.missionDay ?? latest.missionDay
                 }
                 selectedRecordedAt={replayFocus?.recordedAt ?? null}
                 onSelectPoint={onChartPointSelect}
@@ -876,7 +915,7 @@ export function MissionDashboard() {
                 archiveLoaded={archiveLoaded}
                 loadArchiveDisabled={simControlsLocked}
                 animateLines={!simControlsLocked}
-                telemetryArchive={telemetryArchive}
+                telemetryArchive={chartTelemetryArchive}
               />
               {replayFocus ? (
                 <DayReplayDetail

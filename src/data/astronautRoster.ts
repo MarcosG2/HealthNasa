@@ -1,3 +1,4 @@
+import { applyArchetypeToVitalSeries } from "@/lib/archetypeTelemetryTransform";
 import type {
   AstronautHealthArchetype,
   MockAstronautProfile,
@@ -131,65 +132,11 @@ export function archetypeLabel(
   return ARCHETYPE_LABEL[archetype][locale];
 }
 
-/** Shape telemetry to match roster archetype (last missions days). */
+/** Shape telemetry to match roster archetype (progressive drift over mission days). */
 export function applyAstronautArchetype(
   telemetry: VitalReadings[],
   archetype: AstronautHealthArchetype,
   typicalScenarios: MissionScenarioId[]
 ): VitalReadings[] {
-  if (telemetry.length === 0) return telemetry;
-  const rows = telemetry.map((r) => ({ ...r }));
-  const last = rows[rows.length - 1];
-  const prev = rows.length > 1 ? rows[rows.length - 2] : last;
-
-  switch (archetype) {
-    case "healthy":
-      last.systolicBP = Math.min(last.systolicBP, 122);
-      last.heartRate = Math.min(last.heartRate, 78);
-      last.stressLevel = Math.min(last.stressLevel ?? 5, 4);
-      break;
-    case "cardio_warning":
-      last.systolicBP = 152;
-      last.diastolicBP = 96;
-      last.heartRate = 108;
-      prev.systolicBP = 138;
-      break;
-    case "radiation_exposure":
-      last.radiationMsv = 1.35;
-      prev.radiationMsv = 0.95;
-      last.heartRate = Math.max(last.heartRate, 96);
-      last.extraMetrics = { ...last.extraMetrics, fatigueLevel: "elevated" };
-      break;
-    case "isolation_stress":
-      last.sleepHours = 4.2;
-      last.moodScore = 2;
-      last.stressLevel = 8;
-      last.extraMetrics = { ...last.extraMetrics, reactionTimeMs: 520 };
-      break;
-    case "metabolic_drift":
-      last.bloodSugar = 158;
-      last.temperature = 37.4;
-      prev.bloodSugar = 132;
-      break;
-    case "multi_system_critical":
-      last.systolicBP = 168;
-      last.heartRate = 118;
-      last.radiationMsv = 1.6;
-      last.sleepHours = 3.5;
-      last.stressLevel = 9;
-      last.moodScore = 1;
-      last.extraMetrics = {
-        fatigueLevel: "elevated",
-        reactionTimeMs: 580,
-      };
-      break;
-  }
-
-  last.extraMetrics = {
-    ...last.extraMetrics,
-    rosterArchetype: archetype,
-    typicalScenarios: typicalScenarios.join(","),
-  };
-
-  return rows;
+  return applyArchetypeToVitalSeries(telemetry, archetype, typicalScenarios);
 }
