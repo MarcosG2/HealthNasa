@@ -963,24 +963,28 @@ export function MissionDashboard() {
         <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
           <p className="text-sm font-medium text-base-content">{ui.officialReferences}</p>
           <ul className="mt-3 flex flex-col gap-2 text-sm sm:flex-row sm:flex-wrap sm:gap-x-6 sm:gap-y-2">
-            {OFFICIAL_FOOTER_LINKS.map((link) => (
-              <li key={link.url}>
-                <a
-                  href={link.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="link link-primary"
-                >
-                  {link.label}
-                </a>
-              </li>
-            ))}
+            {[...OFFICIAL_FOOTER_LINKS, { label: ui.projectRepoLink, url: PROJECT_GITHUB_URL }].map(
+              (link) => (
+                <li key={link.url}>
+                  <a
+                    href={link.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="link link-primary"
+                  >
+                    {link.label}
+                  </a>
+                </li>
+              )
+            )}
           </ul>
         </div>
       </footer>
     </div>
   );
 }
+
+const PROJECT_GITHUB_URL = "https://github.com/MarcosG2/HealthNasa";
 
 const OFFICIAL_FOOTER_LINKS = [
   {
